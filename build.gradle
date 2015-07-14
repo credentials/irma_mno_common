@@ -1,0 +1,21 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+apply plugin: 'eclipse'
+
+version = '0.1.0'
+group = 'org.irmacard.mno'
+
+repositories {
+    mavenLocal()
+    maven {
+        url "https://credentials.github.io/repos/maven2/"
+    }
+    mavenCentral()
+}
+
+dependencies {
+    compile 'commons-codec:commons-codec:1.10'
+    compile "net.sf.scuba:scuba_smartcards:0.0.7-irma"
+
+    testCompile "junit:junit:4.11"
+}
