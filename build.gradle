@@ -14,8 +14,12 @@ repositories {
 }
 
 dependencies {
+    compile 'com.google.code.gson:gson:2.2.2'
     compile 'commons-codec:commons-codec:1.10'
     compile "net.sf.scuba:scuba_smartcards:0.0.7-irma"
+    compile('org.jmrtd:jmrtd:0.5.2') {
+        transitive = false // Prevent it from including Scuba 0.0.6
+    }
 
     testCompile "junit:junit:4.11"
 }
