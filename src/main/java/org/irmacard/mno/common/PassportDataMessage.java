@@ -251,11 +251,11 @@ public class PassportDataMessage extends BasicClientMessage {
             e.printStackTrace();
         }
         //Util is now deprecated in JMRTD
-        byte[] m1 = Util.recoverMessage(digestLength, plaintext);
         try {
+            byte[] m1 = Util.recoverMessage(digestLength, plaintext);
             aaSignature.update(m1);
             aaSignature.update(challenge);
-        } catch (SignatureException e) {
+        } catch (NumberFormatException|SignatureException e) {
             e.printStackTrace();
         }
 
