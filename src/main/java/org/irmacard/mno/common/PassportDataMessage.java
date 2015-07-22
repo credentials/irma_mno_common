@@ -47,6 +47,7 @@ import org.jmrtd.lds.SODFile;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.InvalidKeyException;
 import java.security.PublicKey;
 import java.security.Signature;
@@ -164,16 +165,19 @@ public class PassportDataMessage extends BasicClientMessage {
             }
 
             // Read the Dutch root certificates
-            FileInputStream ins = new FileInputStream("nl1.cer");
+            InputStream ins = this.getClass().getClassLoader().getResourceAsStream("nl1.cer");
             Certificate NLCert1 = CertificateFactory.getInstance("X.509").generateCertificate(ins);
             ins.close();
-            ins = new FileInputStream("nl2.cer");
+
+            ins = this.getClass().getClassLoader().getResourceAsStream("nl2.cer");
             Certificate NLCert2 = CertificateFactory.getInstance("X.509").generateCertificate(ins);
             ins.close();
-            ins = new FileInputStream("nl3.cer");
+
+            ins = this.getClass().getClassLoader().getResourceAsStream("nl3.cer");
             Certificate NLCert3 = CertificateFactory.getInstance("X.509").generateCertificate(ins);
             ins.close();
-            ins = new FileInputStream("nl4.cer");
+
+            ins = this.getClass().getClassLoader().getResourceAsStream("nl4.cer");
             Certificate NLCert4 = CertificateFactory.getInstance("X.509").generateCertificate(ins);
             ins.close();
 
