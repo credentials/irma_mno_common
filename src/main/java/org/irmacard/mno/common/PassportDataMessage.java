@@ -92,9 +92,19 @@ public class PassportDataMessage extends BasicClientMessage {
 
 
     public boolean readPassport(byte[] challenge) throws CardServiceException, IOException {
-        dg1File = new DG1File(passportService.getInputStream(PassportService.EF_DG1));
-        dg15File =  new DG15File(passportService.getInputStream(PassportService.EF_DG15));
-        sodFile = new SODFile(passportService.getInputStream(PassportService.EF_SOD));
+        if (passportService != null) {
+            if (dg1File == null)
+                dg1File = new DG1File(passportService.getInputStream(PassportService.EF_DG1));
+            if (dg15File == null)
+                dg15File =  new DG15File(passportService.getInputStream(PassportService.EF_DG15));
+            if (sodFile == null)
+                sodFile = new SODFile(passportService.getInputStream(PassportService.EF_SOD));
+        }
+
+        if (dg1File == null || dg15File == null || sodFile == null) {
+            return false;
+        }
+
         //Active Authentication
         //The following 5 rules do the same as the following commented out command, but set the expected length field to 0 instead of 256.
         //This can be replaced by the following rule once JMRTD is fixed.
@@ -104,10 +114,8 @@ public class PassportDataMessage extends BasicClientMessage {
         CommandAPDU wrappedCApdu = wrapper.wrap(capdu);
         ResponseAPDU rapdu = passportService.transmit(wrappedCApdu);
         response = rapdu.getBytes();
-        if (dg1File!=null || dg15File!=null || sodFile != null || response != null){
-            return true;
-        }
-        return false;
+
+        return response != null;
     }
 
     public boolean verify(byte[] challenge){
