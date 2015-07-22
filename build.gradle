@@ -14,7 +14,6 @@ repositories {
 }
 
 dependencies {
-    compile 'com.google.code.gson:gson:2.2.2'
     compile 'commons-codec:commons-codec:1.10'
     compile "net.sf.scuba:scuba_smartcards:0.0.7-irma"
     compile('org.jmrtd:jmrtd:0.5.2') {
