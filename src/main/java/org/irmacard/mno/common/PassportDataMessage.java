@@ -104,17 +104,21 @@ public class PassportDataMessage extends BasicClientMessage {
         return response != null;
     }
 
-    public boolean verify(byte[] challenge){
-        if (!verifyHashes()){
-            //Give apropriate error
+    public PassportVerificationResult verify(byte[] challenge) {
+        if (!verifyHashes()) {
+            return PassportVerificationResult.HASHES_INVALID;
         }
-        if (!verifySignature()){
-            //Give apropriate error
+
+        if (!verifySignature()) {
+            return PassportVerificationResult.SIGNATURE_INVALID;
         }
-        if (!verifyAA(challenge)){
-            //Give apropriate error
+
+        if (!verifyAA(challenge)) {
+            // TODO Give apropriate error
+            return PassportVerificationResult.SUCCESS;
         }
-        return true;
+
+        return PassportVerificationResult.SUCCESS;
     }
 
 
