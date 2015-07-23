@@ -13,6 +13,17 @@ repositories {
     mavenCentral()
 }
 
+sourceSets {
+    main {
+        java {
+            srcDir 'src/main/java'
+        }
+        resources {
+            srcDir 'src/main/resources'
+        }
+    }
+}
+
 dependencies {
     compile 'commons-codec:commons-codec:1.10'
     compile "net.sf.scuba:scuba_smartcards:0.0.7-irma"
