@@ -45,26 +45,12 @@ import org.jmrtd.lds.DG15File;
 import org.jmrtd.lds.DG1File;
 import org.jmrtd.lds.SODFile;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.InvalidKeyException;
-import java.security.PublicKey;
-import java.security.Signature;
-import java.security.SignatureException;
-import java.security.cert.CertPathBuilder;
+import java.security.*;
+import java.security.cert.*;
 import java.security.cert.Certificate;
-import java.security.MessageDigest;
-import java.security.cert.CertificateFactory;
-import java.security.cert.PKIXBuilderParameters;
-import java.security.cert.PKIXCertPathBuilderResult;
-import java.security.cert.TrustAnchor;
-import java.security.cert.X509CertSelector;
-import java.security.cert.X509Certificate;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -168,54 +154,45 @@ public class PassportDataMessage extends BasicClientMessage {
 
             //verify the signature over the SOD file
             if (!sodFile.checkDocSignature(passportCert)) {
-
                 return false;
             }
 
-            // Read the Dutch root certificates
-            InputStream ins = this.getClass().getClassLoader().getResourceAsStream("nl1.cer");
-            Certificate NLCert1 = CertificateFactory.getInstance("X.509").generateCertificate(ins);
-            ins.close();
+            InputStream ins;
+            CertificateFactory factory = CertificateFactory.getInstance("X.509");
+            Certificate nlcert;
+            KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            keyStore.load(null, null);
 
-            ins = this.getClass().getClassLoader().getResourceAsStream("nl2.cer");
-            Certificate NLCert2 = CertificateFactory.getInstance("X.509").generateCertificate(ins);
-            ins.close();
+            // Load certificates from the jar and put them in the keystore
+            for (int i = 1; i <= 4; i++) {
+                ins = this.getClass().getClassLoader().getResourceAsStream("nl" + i + ".cer");
+                nlcert = factory.generateCertificate(ins);
+                keyStore.setCertificateEntry("nl" + i, nlcert);
+                ins.close();
+            }
 
-            ins = this.getClass().getClassLoader().getResourceAsStream("nl3.cer");
-            Certificate NLCert3 = CertificateFactory.getInstance("X.509").generateCertificate(ins);
-            ins.close();
+            // Found this at https://stackoverflow.com/questions/6143646/validate-x509-certificates-using-java-apis. I
+            // really have _no_ clue why this works while the previous code (which was roughly along the lines of
+            // http://stackoverflow.com/a/2458343) didn't...
+            // The API is vastly unclear, the documentation doesn't help, and neither does the internet. We might even
+            // want to consider doing the verification entirely manually. At least then we can be sure what's really
+            // going on.
+            // TODO revocation checking
+            CertificateFactory cf = CertificateFactory.getInstance("X.509");
+            List<X509Certificate> mylist = new ArrayList<X509Certificate>();
+            mylist.add((X509Certificate) passportCert);
+            CertPath cp = cf.generateCertPath(mylist);
 
-            ins = this.getClass().getClassLoader().getResourceAsStream("nl4.cer");
-            Certificate NLCert4 = CertificateFactory.getInstance("X.509").generateCertificate(ins);
-            ins.close();
-
-            //and put them in a set of trustAnchors.
-            Set<TrustAnchor> trustAnchors = new HashSet<TrustAnchor>();
-            trustAnchors.add(new TrustAnchor((X509Certificate) NLCert1, null));
-            trustAnchors.add(new TrustAnchor((X509Certificate) NLCert2, null));
-            trustAnchors.add(new TrustAnchor((X509Certificate) NLCert3, null));
-            trustAnchors.add(new TrustAnchor((X509Certificate) NLCert4, null));
-
-            //the starting certificate
-            X509CertSelector selector = new X509CertSelector();
-            selector.setCertificate(passportCert);
-
-            PKIXBuilderParameters params =
-                    new PKIXBuilderParameters(trustAnchors, selector);
+            PKIXParameters params = new PKIXParameters(keyStore);
             params.setRevocationEnabled(false);
-            //TODO at some point we will need to do revocation checks
-
-            // Build and verify the certification chain
-            // An exception will be thrown if the certificate check fails
-            CertPathBuilder builder = CertPathBuilder.getInstance("PKIX", "BC");
-            PKIXCertPathBuilderResult result =
-                    (PKIXCertPathBuilderResult) builder.build(params);
+            CertPathValidator cpv = CertPathValidator.getInstance(CertPathValidator.getDefaultType());
+            PKIXCertPathValidatorResult result = (PKIXCertPathValidatorResult) cpv.validate(cp, params);
+            return true;
 
         } catch (Exception e) {
             e.printStackTrace();
             return false;
         }
-        return true;
     }
 
     private boolean verifyAA(byte[] challenge){
