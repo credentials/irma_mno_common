@@ -38,6 +38,7 @@ import net.sf.scuba.smartcards.CardServiceException;
 import net.sf.scuba.smartcards.CommandAPDU;
 import net.sf.scuba.smartcards.ISO7816;
 import net.sf.scuba.smartcards.ResponseAPDU;
+import net.sf.scuba.util.Hex;
 
 import org.jmrtd.PassportService;
 import org.jmrtd.Util;
@@ -94,17 +95,25 @@ public class PassportDataMessage extends BasicClientMessage {
         //Active Authentication
         //The following 5 rules do the same as the following commented out command, but set the expected length field to 0 instead of 256.
         //This can be replaced by the following rule once JMRTD is fixed.
-        //resp = passportService.sendInternalAuthenticate(passportService.getWrapper(), challenge);
-        CommandAPDU capdu = new CommandAPDU(ISO7816.CLA_ISO7816, ISO7816.INS_INTERNAL_AUTHENTICATE, 0x00, 0x00, challenge, 0);
+       //response = passportService.sendInternalAuthenticate(passportService.getWrapper(), challenge);
+        CommandAPDU capdu = new CommandAPDU(ISO7816.CLA_ISO7816, ISO7816.INS_INTERNAL_AUTHENTICATE, 0x00, 0x00, challenge,256);
+       // System.out.println("CAPDU: " + Hex.bytesToSpacedHexString(capdu.getBytes()));
         APDUWrapper wrapper = passportService.getWrapper();
         CommandAPDU wrappedCApdu = wrapper.wrap(capdu);
+
+      //  System.out.println("CAPDU: " + Hex.bytesToSpacedHexString(wrappedCApdu.getBytes()));
         ResponseAPDU rapdu = passportService.transmit(wrappedCApdu);
-        response = rapdu.getBytes();
+       // int sw = rapdu.getSW();
+       // System.out.println("STATUS WORDS: "+ sw);
+        rapdu = wrapper.unwrap(rapdu, rapdu.getBytes().length);
+        response = rapdu.getData();
 
         return response != null;
     }
 
     public PassportVerificationResult verify(byte[] challenge) {
+        System.out.println("challenge:" + Hex.bytesToHexString(challenge));
+        System.out.println(this.toString());
         if (!verifyHashes()) {
             return PassportVerificationResult.HASHES_INVALID;
         }
@@ -226,6 +235,7 @@ public class PassportDataMessage extends BasicClientMessage {
         byte[] plaintext = new byte[0];
         try {
             plaintext = aaCipher.doFinal(response);
+            System.out.println("plaintext:" + Hex.bytesToPrettyString(plaintext));
         } catch (IllegalBlockSizeException e) {
             e.printStackTrace();
         } catch (BadPaddingException e) {
@@ -233,7 +243,7 @@ public class PassportDataMessage extends BasicClientMessage {
         }
         //Util is now deprecated in JMRTD
         try {
-            byte[] m1 = Util.recoverMessage(digestLength, plaintext);
+            byte[] m1 = recoverMessage(digestLength, plaintext);
             aaSignature.update(m1);
             aaSignature.update(challenge);
         } catch (NumberFormatException|SignatureException e) {
@@ -247,6 +257,68 @@ public class PassportDataMessage extends BasicClientMessage {
             e.printStackTrace();
         }
         return success;
+    }
+
+    /**
+     * Recovers the M1 part of the message sent back by the AA protocol
+     * (INTERNAL AUTHENTICATE command). The algorithm is described in
+     * ISO 9796-2:2002 9.3.
+     *
+     * Based on code by Ronny (ronny@cs.ru.nl) who presumably ripped this
+     * from Bouncy Castle.
+     *
+     * @param digestLength should be 20
+     * @param plaintext response from card, already 'decrypted' (using the
+     * AA public key)
+     *
+     * @return the m1 part of the message
+     */
+    public static byte[] recoverMessage(int digestLength, byte[] plaintext) {
+        if (plaintext == null || plaintext.length < 1) {
+            throw new IllegalArgumentException("Plaintext too short to recover message");
+        }
+        if (((plaintext[0] & 0xC0) ^ 0x40) != 0) {
+            // 0xC0 = 1100 0000, 0x40 = 0100 0000
+            throw new NumberFormatException("Could not get M1-0");
+        }
+        if (((plaintext[plaintext.length - 1] & 0xF) ^ 0xC) != 0) {
+            // 0xF = 0000 1111, 0xC = 0000 1100
+            throw new NumberFormatException("Could not get M1-1");
+        }
+        int delta = 0;
+        if (((plaintext[plaintext.length - 1] & 0xFF) ^ 0xBC) == 0) {
+            delta = 1;
+        } else {
+            // 0xBC = 1011 1100
+            throw new NumberFormatException("Could not get M1-2");
+        }
+
+		/* find out how much padding we've got */
+        int paddingLength = 0;
+        for (; paddingLength < plaintext.length; paddingLength++) {
+            // 0x0A = 0000 1010
+            if (((plaintext[paddingLength] & 0x0F) ^ 0x0A) == 0) {
+                break;
+            }
+        }
+        int messageOffset = paddingLength + 1;
+
+        int paddedMessageLength = plaintext.length - delta - digestLength;
+        int messageLength = paddedMessageLength - messageOffset;
+
+		/* there must be at least one byte of message string */
+        if (messageLength <= 0) {
+            throw new NumberFormatException("Could not get M1-3");
+        }
+
+		/* TODO: if we contain the whole message as well, check the hash of that. */
+        if ((plaintext[0] & 0x20) == 0) {
+            throw new NumberFormatException("Could not get M1-4");
+        } else {
+            byte[] recoveredMessage = new byte[messageLength];
+            System.arraycopy(plaintext, messageOffset, recoveredMessage, 0, messageLength);
+            return recoveredMessage;
+        }
     }
 
     public boolean isComplete () {
@@ -302,6 +374,10 @@ public class PassportDataMessage extends BasicClientMessage {
     }
 
     public String toString() {
-        return "[IMSI: " + imsi + ", Session: " + getSessionToken() + "]";
+        return "[IMSI: " + imsi + ", Session: " + getSessionToken() + "\n"
+                + "SODFile: " + sodFile.toString() +"\n"
+                + "DG1:" + dg1File.toString() + "\n"
+                + "DG15" + dg15File.toString() + "\n"
+                + "response:" + Hex.bytesToHexString(response) + " ]";
     }
 }
