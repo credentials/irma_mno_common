@@ -33,20 +33,12 @@
 
 package org.irmacard.mno.common;
 
-import net.sf.scuba.smartcards.APDUWrapper;
-import net.sf.scuba.smartcards.CardServiceException;
-import net.sf.scuba.smartcards.CommandAPDU;
-import net.sf.scuba.smartcards.ISO7816;
-import net.sf.scuba.smartcards.ResponseAPDU;
 import net.sf.scuba.util.Hex;
 
-import org.jmrtd.PassportService;
-import org.jmrtd.Util;
 import org.jmrtd.lds.DG15File;
 import org.jmrtd.lds.DG1File;
 import org.jmrtd.lds.SODFile;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.security.*;
 import java.security.cert.*;
@@ -65,50 +57,13 @@ public class PassportDataMessage extends BasicClientMessage {
     DG15File dg15File;
     byte [] response;
 
-    PassportService passportService;
-
 
     public PassportDataMessage() {
     }
 
-    public PassportDataMessage(String sessionToken, String imsi, PassportService ps) {
+    public PassportDataMessage(String sessionToken, String imsi) {
         super(sessionToken);
         this.imsi = imsi;
-        passportService = ps;
-    }
-
-
-    public boolean readPassport(byte[] challenge) throws CardServiceException, IOException {
-        if (passportService != null) {
-            if (dg1File == null)
-                dg1File = new DG1File(passportService.getInputStream(PassportService.EF_DG1));
-            if (dg15File == null)
-                dg15File =  new DG15File(passportService.getInputStream(PassportService.EF_DG15));
-            if (sodFile == null)
-                sodFile = new SODFile(passportService.getInputStream(PassportService.EF_SOD));
-        }
-
-        if (dg1File == null || dg15File == null || sodFile == null) {
-            return false;
-        }
-
-        //Active Authentication
-        //The following 5 rules do the same as the following commented out command, but set the expected length field to 0 instead of 256.
-        //This can be replaced by the following rule once JMRTD is fixed.
-       //response = passportService.sendInternalAuthenticate(passportService.getWrapper(), challenge);
-        CommandAPDU capdu = new CommandAPDU(ISO7816.CLA_ISO7816, ISO7816.INS_INTERNAL_AUTHENTICATE, 0x00, 0x00, challenge,256);
-       // System.out.println("CAPDU: " + Hex.bytesToSpacedHexString(capdu.getBytes()));
-        APDUWrapper wrapper = passportService.getWrapper();
-        CommandAPDU wrappedCApdu = wrapper.wrap(capdu);
-
-      //  System.out.println("CAPDU: " + Hex.bytesToSpacedHexString(wrappedCApdu.getBytes()));
-        ResponseAPDU rapdu = passportService.transmit(wrappedCApdu);
-       // int sw = rapdu.getSW();
-       // System.out.println("STATUS WORDS: "+ sw);
-        rapdu = wrapper.unwrap(rapdu, rapdu.getBytes().length);
-        response = rapdu.getData();
-
-        return response != null;
     }
 
     public PassportVerificationResult verify(byte[] challenge) {
@@ -253,7 +208,7 @@ public class PassportDataMessage extends BasicClientMessage {
         boolean success = false;
         try {
             success = aaSignature.verify(response);
-        } catch (SignatureException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return success;
@@ -363,14 +318,6 @@ public class PassportDataMessage extends BasicClientMessage {
 
     public void setResponse(byte[] response) {
         this.response = response;
-    }
-
-    public PassportService getPassportService() {
-        return passportService;
-    }
-
-    public void setPassportService(PassportService passportService) {
-        this.passportService = passportService;
     }
 
     public String toString() {
