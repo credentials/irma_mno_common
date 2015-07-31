@@ -44,6 +44,8 @@ import java.io.InputStream;
 import java.security.*;
 import java.security.cert.*;
 import java.security.cert.Certificate;
+import java.security.interfaces.ECPublicKey;
+import java.security.spec.ECParameterSpec;
 import java.util.*;
 
 import javax.crypto.BadPaddingException;
@@ -171,44 +173,56 @@ public class PassportDataMessage extends BasicClientMessage {
      * @return true if valid, false otherwise
      */
     private boolean verifyAA(byte[] challenge) {
-        //
-        //initialise ciphersuite
         PublicKey publickey = dg15File.getPublicKey();
         Signature aaSignature = null;
         MessageDigest aaDigest = null;
         Cipher aaCipher = null;
+        boolean answer = false;
 
-        try{
-            aaSignature = Signature.getInstance("SHA1WithRSA/ISO9796-2");
-            aaDigest = MessageDigest.getInstance("SHA1");
-            aaCipher = Cipher.getInstance("RSA/NONE/NoPadding");
+        try {
+            if (publickey.getAlgorithm().equals("RSA")) {
+                aaSignature = Signature.getInstance("SHA1WithRSA/ISO9796-2");
+                aaDigest = MessageDigest.getInstance("SHA1");
+                aaCipher = Cipher.getInstance("RSA/NONE/NoPadding");
+                aaCipher.init(Cipher.DECRYPT_MODE, publickey);
+                aaSignature.initVerify(publickey);
 
-            aaCipher.init(Cipher.DECRYPT_MODE, publickey);
-            aaSignature.initVerify(publickey);
+                int digestLength = aaDigest.getDigestLength(); /* should always be 20 */
+                assert (digestLength == 20);
+                byte[] plaintext = new byte[0];
 
-            int digestLength = aaDigest.getDigestLength(); /* should always be 20 */
-            assert(digestLength == 20);
-            byte[] plaintext = new byte[0];
+                plaintext = aaCipher.doFinal(response);
+                System.out.println("plaintext:" + Hex.bytesToPrettyString(plaintext));
 
-            plaintext = aaCipher.doFinal(response);
-            System.out.println("plaintext:" + Hex.bytesToPrettyString(plaintext));
+                byte[] m1 = recoverMessage(digestLength, plaintext);
+                aaSignature.update(m1);
+                aaSignature.update(challenge);
 
-            byte[] m1 = Util.recoverMessage(digestLength, plaintext);
-            aaSignature.update(m1);
-            aaSignature.update(challenge);
+                answer = aaSignature.verify(response);
 
-            return aaSignature.verify(response);
+            } else if (publickey.getAlgorithm().equals("EC")) {
+                ECPublicKey ecPublicKey = (ECPublicKey) publickey;
+                ECParameterSpec ecParams = ecPublicKey.getParams();
+                aaSignature = Signature.getInstance("SHA256/CVC-ECDSA");
 
-        } catch (NoSuchAlgorithmException  // Error initialising AA cipher suite
-                |NoSuchPaddingException    // same
-                |InvalidKeyException       // publickey is invalid
-                |IllegalBlockSizeException // Error in aaCipher.doFinal()
-                |BadPaddingException       // same
-                |NumberFormatException     // Error in computing or verifying signature
-                |SignatureException e) {   // same
+                aaSignature.initVerify(publickey);
+                aaSignature.update(challenge);
+                answer = aaSignature.verify(response);
+
+            }
+        } catch (ClassCastException         // Casting of publickey to an EC public key failed
+                | NoSuchAlgorithmException  // Error initialising AA cipher suite
+                | NoSuchPaddingException    // same
+                | InvalidKeyException       // publickey is invalid
+                | IllegalBlockSizeException // Error in aaCipher.doFinal()
+                | BadPaddingException       // same
+                | NumberFormatException     // Error in computing or verifying signature
+                | SignatureException e) {   // same
             e.printStackTrace();
-            return false;
+            answer = false;
         }
+
+        return answer;
     }
 
     /**
