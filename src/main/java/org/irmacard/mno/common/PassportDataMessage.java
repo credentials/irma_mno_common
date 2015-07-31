@@ -35,6 +35,7 @@ package org.irmacard.mno.common;
 
 import net.sf.scuba.util.Hex;
 
+import org.jmrtd.Util;
 import org.jmrtd.lds.DG15File;
 import org.jmrtd.lds.DG1File;
 import org.jmrtd.lds.SODFile;
@@ -48,6 +49,7 @@ import java.util.*;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 
 public class PassportDataMessage extends BasicClientMessage {
     private String imsi;
@@ -78,8 +80,7 @@ public class PassportDataMessage extends BasicClientMessage {
         }
 
         if (!verifyAA(challenge)) {
-            // TODO Give apropriate error
-            return PassportVerificationResult.SUCCESS;
+            return PassportVerificationResult.AA_FAILED;
         }
 
         return PassportVerificationResult.SUCCESS;
@@ -163,55 +164,51 @@ public class PassportDataMessage extends BasicClientMessage {
         }
     }
 
-    private boolean verifyAA(byte[] challenge){
-        //verify whether the response matches the AA computation of the challenge and the private key belonging to the public key stored in DG15
+    /**
+     * Verify whether the response matches the AA computation of the challenge and the private key belonging to the public key stored in DG15.
+     *
+     * @param challenge The challenge
+     * @return true if valid, false otherwise
+     */
+    private boolean verifyAA(byte[] challenge) {
+        //
         //initialise ciphersuite
+        PublicKey publickey = dg15File.getPublicKey();
         Signature aaSignature = null;
         MessageDigest aaDigest = null;
         Cipher aaCipher = null;
+
         try{
             aaSignature = Signature.getInstance("SHA1WithRSA/ISO9796-2");
             aaDigest = MessageDigest.getInstance("SHA1");
             aaCipher = Cipher.getInstance("RSA/NONE/NoPadding");
-        } catch (Exception e){
-            e.printStackTrace();
-            //TODO: Error initialising AA cipher suite
-        }
 
-        PublicKey publickey = dg15File.getPublicKey();
-        try {
             aaCipher.init(Cipher.DECRYPT_MODE, publickey);
-            aaSignature.initVerify(dg15File.getPublicKey());
-        } catch (InvalidKeyException e) {
-            e.printStackTrace();
-        }
-        int digestLength = aaDigest.getDigestLength(); /* should always be 20 */
-        assert(digestLength == 20);
-        byte[] plaintext = new byte[0];
-        try {
+            aaSignature.initVerify(publickey);
+
+            int digestLength = aaDigest.getDigestLength(); /* should always be 20 */
+            assert(digestLength == 20);
+            byte[] plaintext = new byte[0];
+
             plaintext = aaCipher.doFinal(response);
             System.out.println("plaintext:" + Hex.bytesToPrettyString(plaintext));
-        } catch (IllegalBlockSizeException e) {
-            e.printStackTrace();
-        } catch (BadPaddingException e) {
-            e.printStackTrace();
-        }
-        //Util is now deprecated in JMRTD
-        try {
-            byte[] m1 = recoverMessage(digestLength, plaintext);
+
+            byte[] m1 = Util.recoverMessage(digestLength, plaintext);
             aaSignature.update(m1);
             aaSignature.update(challenge);
-        } catch (NumberFormatException|SignatureException e) {
-            e.printStackTrace();
-        }
 
-        boolean success = false;
-        try {
-            success = aaSignature.verify(response);
-        } catch (Exception e) {
+            return aaSignature.verify(response);
+
+        } catch (NoSuchAlgorithmException  // Error initialising AA cipher suite
+                |NoSuchPaddingException    // same
+                |InvalidKeyException       // publickey is invalid
+                |IllegalBlockSizeException // Error in aaCipher.doFinal()
+                |BadPaddingException       // same
+                |NumberFormatException     // Error in computing or verifying signature
+                |SignatureException e) {   // same
             e.printStackTrace();
+            return false;
         }
-        return success;
     }
 
     /**
