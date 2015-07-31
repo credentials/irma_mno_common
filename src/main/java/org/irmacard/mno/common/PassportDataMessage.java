@@ -36,9 +36,7 @@ package org.irmacard.mno.common;
 import net.sf.scuba.util.Hex;
 
 import org.jmrtd.Util;
-import org.jmrtd.lds.DG15File;
-import org.jmrtd.lds.DG1File;
-import org.jmrtd.lds.SODFile;
+import org.jmrtd.lds.*;
 
 import java.io.InputStream;
 import java.security.*;
@@ -58,6 +56,7 @@ public class PassportDataMessage extends BasicClientMessage {
 
     SODFile sodFile;
     DG1File dg1File;
+    DG14File dg14File;
     DG15File dg15File;
     byte [] response;
 
@@ -181,6 +180,7 @@ public class PassportDataMessage extends BasicClientMessage {
 
         try {
             if (publickey.getAlgorithm().equals("RSA")) {
+                // Instantiate signature scheme, digest and cipher
                 aaSignature = Signature.getInstance("SHA1WithRSA/ISO9796-2");
                 aaDigest = MessageDigest.getInstance("SHA1");
                 aaCipher = Cipher.getInstance("RSA/NONE/NoPadding");
@@ -201,9 +201,19 @@ public class PassportDataMessage extends BasicClientMessage {
                 answer = aaSignature.verify(response);
 
             } else if (publickey.getAlgorithm().equals("EC")) {
+                // Retrieve the signature scheme from DG14
+                List<ActiveAuthenticationInfo> aaInfos = getDg14File().getActiveAuthenticationInfos();
+                assert (aaInfos.size() == 1);
+                ActiveAuthenticationInfo aaInfo = aaInfos.get(0);
+                String oid = aaInfo.getSignatureAlgorithmOID();
+                String mnenomic = ActiveAuthenticationInfo.lookupMnemonicByOID(oid);
+                mnenomic = rewriteECDSAMnenomic(mnenomic);
+
+                aaSignature = Signature.getInstance(mnenomic);
+                assert (aaSignature != null);
+
                 ECPublicKey ecPublicKey = (ECPublicKey) publickey;
                 ECParameterSpec ecParams = ecPublicKey.getParams();
-                aaSignature = Signature.getInstance("SHA256/CVC-ECDSA");
 
                 aaSignature.initVerify(publickey);
                 aaSignature.update(challenge);
@@ -223,6 +233,17 @@ public class PassportDataMessage extends BasicClientMessage {
         }
 
         return answer;
+    }
+
+    public static String rewriteECDSAMnenomic (String mnenomic) {
+        if (mnenomic.equals("SHA1withECDSA")) { return "SHA1/CVC-ECDSA"; }
+        if (mnenomic.equals("SHA224withECDSA")) { return "SHA224/CVC-ECDSA"; }
+        if (mnenomic.equals("SHA256withECDSA")) { return "SHA256/CVC-ECDSA"; }
+        if (mnenomic.equals("SHA384withECDSA")) { return "SHA348/CVC-ECDSA"; }
+        if (mnenomic.equals("SHA512withECDSA")) { return "SHA512/CVC-ECDSA"; }
+        if (mnenomic.equals("RIPEMD160withECDSA")) { return "RIPEMD160/CVC-ECDSA"; }
+
+        return mnenomic;
     }
 
     /**
@@ -313,6 +334,14 @@ public class PassportDataMessage extends BasicClientMessage {
 
     public void setDg1File(DG1File dg1File) {
         this.dg1File = dg1File;
+    }
+
+    public DG14File getDg14File() {
+        return dg14File;
+    }
+
+    public void setDg14File(DG14File dg14File) {
+        this.dg14File = dg14File;
     }
 
     public DG15File getDg15File() {
