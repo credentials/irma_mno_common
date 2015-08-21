@@ -58,6 +58,7 @@ public class PassportDataMessage extends BasicClientMessage {
     DG1File dg1File;
     DG14File dg14File;
     DG15File dg15File;
+    byte [] challenge;
     byte [] response;
 
 
@@ -67,6 +68,12 @@ public class PassportDataMessage extends BasicClientMessage {
     public PassportDataMessage(String sessionToken, String imsi) {
         super(sessionToken);
         this.imsi = imsi;
+    }
+
+    public PassportDataMessage(String sessionToken, String imsi, byte[] challenge) {
+        super(sessionToken);
+        this.imsi = imsi;
+	this.challenge = challenge;
     }
 
     public PassportVerificationResult verify(byte[] challenge) {
@@ -350,6 +357,14 @@ public class PassportDataMessage extends BasicClientMessage {
 
     public void setDg15File(DG15File dg15File) {
         this.dg15File = dg15File;
+    }
+
+    public byte[] getChallenge() {
+        return challenge;
+    }
+
+    public void setChallenge(byte[] response) {
+        this.challenge = challenge;
     }
 
     public byte[] getResponse() {
