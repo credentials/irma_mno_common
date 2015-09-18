@@ -77,8 +77,6 @@ public class PassportDataMessage extends BasicClientMessage {
     }
 
     public PassportVerificationResult verify(byte[] challenge) {
-        System.out.println("challenge:" + Hex.bytesToHexString(challenge));
-        System.out.println(this.toString());
         if (!verifyHashes()) {
             return PassportVerificationResult.HASHES_INVALID;
         }
@@ -199,7 +197,6 @@ public class PassportDataMessage extends BasicClientMessage {
                 byte[] plaintext = new byte[0];
 
                 plaintext = aaCipher.doFinal(response);
-                System.out.println("plaintext:" + Hex.bytesToPrettyString(plaintext));
 
                 byte[] m1 = recoverMessage(digestLength, plaintext);
                 aaSignature.update(m1);
