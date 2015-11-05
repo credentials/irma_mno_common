@@ -73,7 +73,7 @@ public class PassportDataMessage extends BasicClientMessage {
     public PassportDataMessage(String sessionToken, String imsi, byte[] challenge) {
         super(sessionToken);
         this.imsi = imsi;
-	this.challenge = challenge;
+        this.challenge = challenge;
     }
 
     public PassportVerificationResult verify(byte[] challenge) {
@@ -284,7 +284,7 @@ public class PassportDataMessage extends BasicClientMessage {
             throw new NumberFormatException("Could not get M1-2");
         }
 
-		/* find out how much padding we've got */
+        /* find out how much padding we've got */
         int paddingLength = 0;
         for (; paddingLength < plaintext.length; paddingLength++) {
             // 0x0A = 0000 1010
@@ -297,12 +297,12 @@ public class PassportDataMessage extends BasicClientMessage {
         int paddedMessageLength = plaintext.length - delta - digestLength;
         int messageLength = paddedMessageLength - messageOffset;
 
-		/* there must be at least one byte of message string */
+        /* there must be at least one byte of message string */
         if (messageLength <= 0) {
             throw new NumberFormatException("Could not get M1-3");
         }
 
-		/* TODO: if we contain the whole message as well, check the hash of that. */
+        /* TODO: if we contain the whole message as well, check the hash of that. */
         if ((plaintext[0] & 0x20) == 0) {
             throw new NumberFormatException("Could not get M1-4");
         } else {
