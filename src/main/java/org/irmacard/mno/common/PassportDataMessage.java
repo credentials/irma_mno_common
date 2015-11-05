@@ -313,7 +313,13 @@ public class PassportDataMessage extends BasicClientMessage {
     }
 
     public boolean isComplete () {
-        return imsi != null && sodFile != null && dg1File != null && dg15File != null && response != null;
+        if (sodFile == null)
+            return false;
+
+        if (sodFile.getDataGroupHashes().get(14) != null && dg14File == null)
+            return false;
+
+        return imsi != null && dg1File != null && dg15File != null && response != null;
     }
 
     public String getImsi() {
