@@ -32,6 +32,10 @@ public class DriverDemographicInfo {
 
    // public String number = null; TODO this would be BSN...
 
+    public DriverDemographicInfo(){
+
+    }
+
     /**
      * Constructs a new object.
      *
@@ -145,8 +149,37 @@ public class DriverDemographicInfo {
         return result;
     }
 
+    public String getFamilyName() {
+        return familyName;
+    }
 
+    public void setFamilyName(String familyName) {
+        this.familyName = familyName;
+    }
 
+    public String getGivenNames() {
+        return givenNames;
+    }
+
+    public void setGivenNames(String givenNames) {
+        this.givenNames = givenNames;
+    }
+
+    public String getPlaceOfBirth() {
+        return placeOfBirth;
+    }
+
+    public void setPlaceOfBirth(String placeOfBirth) {
+        this.placeOfBirth = placeOfBirth;
+    }
+
+    public String getDob() {
+        return dob;
+    }
+
+    public void setDob(String dob) {
+        this.dob = dob;
+    }
 }
 
 
