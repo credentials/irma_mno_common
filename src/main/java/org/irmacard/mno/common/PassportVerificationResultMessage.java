@@ -32,8 +32,11 @@
 
 package org.irmacard.mno.common;
 
+import org.irmacard.api.common.ClientQr;
+
 public class PassportVerificationResultMessage {
     PassportVerificationResult result;
+    ClientQr server;
 
     public PassportVerificationResultMessage() {
     }
@@ -48,5 +51,13 @@ public class PassportVerificationResultMessage {
 
     public void setResult(PassportVerificationResult result) {
         this.result = result;
+    }
+
+    public ClientQr getIssueQr() {
+        return server;
+    }
+
+    public void setIssueQr(ClientQr qr) {
+        this.server = qr;
     }
 }
