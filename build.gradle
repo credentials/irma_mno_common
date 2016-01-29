@@ -2,7 +2,7 @@ apply plugin: 'java'
 apply plugin: 'maven'
 apply plugin: 'eclipse'
 
-version = '0.1.2'
+version = '0.1.3'
 group = 'org.irmacard.mno'
 
 repositories {

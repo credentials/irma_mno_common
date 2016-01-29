@@ -50,7 +50,7 @@ import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 
-public class PassportDataMessage extends BasicClientMessage {
+public class PassportDataMessage extends DocumentDataMessage  {
     private String imsi;
 
     SODFile sodFile;

@@ -49,7 +49,7 @@ import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 
-public class EDLDataMessage extends BasicClientMessage {
+public class EDLDataMessage extends DocumentDataMessage {
     private String imsi;
 
     //SODFile sodFile;
@@ -75,8 +75,8 @@ public class EDLDataMessage extends BasicClientMessage {
         this.challenge = challenge;
     }
 
-/*    public PassportVerificationResult verify(byte[] challenge) {
-        if (!verifyHashes()) {
+    public PassportVerificationResult verify(byte[] challenge) {
+        /* if (!verifyHashes()) {
             return PassportVerificationResult.HASHES_INVALID;
         }
 
@@ -86,11 +86,12 @@ public class EDLDataMessage extends BasicClientMessage {
 
         if (!verifyAA(challenge)) {
             return PassportVerificationResult.AA_FAILED;
-        }
+        }*/
 
+        // TODO
         return PassportVerificationResult.SUCCESS;
     }
-*/
+
 
     /**
      * Method to verify the hashes of datagroups 1 and 15 against those present in the SOD File
