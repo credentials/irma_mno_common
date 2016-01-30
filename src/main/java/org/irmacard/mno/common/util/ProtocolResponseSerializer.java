@@ -56,6 +56,6 @@ public class ProtocolResponseSerializer implements
 	public ProtocolResponse deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
 		return new ProtocolResponse(
 				json.getAsJsonObject().get("key").getAsString(),
-				new ResponseAPDU(Hex.hexStringToBytes(json.getAsJsonObject().get("command").getAsString())));
+				new ResponseAPDU(Hex.hexStringToBytes(json.getAsJsonObject().get("apdu").getAsString())));
 	}
 }
