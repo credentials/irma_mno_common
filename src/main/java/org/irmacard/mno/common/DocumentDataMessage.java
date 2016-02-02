@@ -68,9 +68,9 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 	protected abstract String getPersonalDataFileAsString();
 
 	public PassportVerificationResult verify(byte[] challenge) {
-		//if (!verifyHashes()) {
-		//	return PassportVerificationResult.HASHES_INVALID;
-		//}
+		if (!verifyHashes()) {
+			return PassportVerificationResult.HASHES_INVALID;
+		}
 
 		if (!verifySignature()) {
 			return PassportVerificationResult.SIGNATURE_INVALID;
