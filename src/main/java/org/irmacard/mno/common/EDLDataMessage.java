@@ -36,6 +36,8 @@ import net.sf.scuba.util.Hex;
 import org.jmrtd.Util;
 import org.jmrtd.lds.*;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.security.*;
 import java.security.cert.*;
@@ -50,318 +52,143 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 
 public class EDLDataMessage extends DocumentDataMessage {
-    private String imsi;
 
-    //SODFile sodFile;
-    //EDL_DG1File dg1File;
-    //DG14File dg14File;
-    //DG15File dg15File;
-    byte [] challenge;
-    DriverDemographicInfo driverInfo;
-    //byte [] response;
-
-
-    public EDLDataMessage() {
-    }
+    byte[] dg1File; /* personal data */
+    String documentNr; /* this is taken from the MRZ, if the BAC worked, than the MRZ was correct */
+    private static final Integer aaDataGroupNumber = new Integer (13);
+    private static final String rootCertFilePath = "";
 
     public EDLDataMessage(String sessionToken, String imsi) {
-        super(sessionToken);
-        this.imsi = imsi;
+        super(sessionToken,imsi);
     }
 
     public EDLDataMessage(String sessionToken, String imsi, byte[] challenge) {
-        super(sessionToken);
-        this.imsi = imsi;
-        this.challenge = challenge;
+        super(sessionToken,imsi,challenge);
     }
 
-    public PassportVerificationResult verify(byte[] challenge) {
-        /* if (!verifyHashes()) {
-            return PassportVerificationResult.HASHES_INVALID;
-        }
-
-        if (!verifySignature()) {
-            return PassportVerificationResult.SIGNATURE_INVALID;
-        }
-
-        if (!verifyAA(challenge)) {
-            return PassportVerificationResult.AA_FAILED;
-        }*/
-
-        // TODO
-        return PassportVerificationResult.SUCCESS;
+    @Override
+    protected byte[] getPersonalDataFileAsBytes() {
+        return dg1File;
     }
 
-
-    /**
-     * Method to verify the hashes of datagroups 1 and 15 against those present in the SOD File
-     * @return
-     */
-    /*
-    private boolean verifyHashes(){
-        String digestAlg = sodFile.getDigestAlgorithm();
-        Map<Integer, byte[]> hashes = sodFile.getDataGroupHashes();
-        MessageDigest digest = null;
-        try {
-            digest = MessageDigest.getInstance(digestAlg);
-        } catch (Exception e) {
-            //TODO: Error!
-            e.printStackTrace();
-        }
-        digest.update(dg1File.getEncoded());
-        byte[] hash_dg1 = digest.digest();
-        digest.update(dg15File.getEncoded());
-        byte[] hash_dg15 = digest.digest();
-
-        if (!Arrays.equals(hash_dg1, hashes.get(Integer.valueOf(1)))) {
-            return false;
-        }
-        if (!Arrays.equals(hash_dg15, hashes.get(Integer.valueOf(15)))) {
-            return false;
-        }
-
-        return true;
-    }
-*/
-
-/*
-    private boolean verifySignature() {
-        try {
-            //retrieve the Certificate used for signing the document.
-            X509Certificate passportCert = sodFile.getDocSigningCertificate();
-
-            //verify the signature over the SOD file
-            if (!sodFile.checkDocSignature(passportCert)) {
-                return false;
-            }
-
-            InputStream ins;
-            CertificateFactory factory = CertificateFactory.getInstance("X.509");
-            Certificate nlcert;
-            KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-            keyStore.load(null, null);
-
-            // Load certificates from the jar and put them in the keystore
-            for (int i = 1; i <= 4; i++) {
-                ins = this.getClass().getClassLoader().getResourceAsStream("nl" + i + ".cer");
-                nlcert = factory.generateCertificate(ins);
-                keyStore.setCertificateEntry("nl" + i, nlcert);
-                ins.close();
-            }
-
-            // Found this at https://stackoverflow.com/questions/6143646/validate-x509-certificates-using-java-apis. I
-            // really have _no_ clue why this works while the previous code (which was roughly along the lines of
-            // http://stackoverflow.com/a/2458343) didn't...
-            // The API is vastly unclear, the documentation doesn't help, and neither does the internet. We might even
-            // want to consider doing the verification entirely manually. At least then we can be sure what's really
-            // going on.
-            // TODO revocation checking
-            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-            List<X509Certificate> mylist = new ArrayList<X509Certificate>();
-            mylist.add((X509Certificate) passportCert);
-            CertPath cp = cf.generateCertPath(mylist);
-
-            PKIXParameters params = new PKIXParameters(keyStore);
-            params.setRevocationEnabled(false);
-            CertPathValidator cpv = CertPathValidator.getInstance(CertPathValidator.getDefaultType());
-            PKIXCertPathValidatorResult result = (PKIXCertPathValidatorResult) cpv.validate(cp, params);
-            return true;
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-*/
-
-    /**
-     * Verify whether the response matches the AA computation of the challenge and the private key belonging to the public key stored in DG15.
-     *
-     * //@param challenge The challenge
-     * @return true if valid, false otherwise
-     */
-/*    private boolean verifyAA(byte[] challenge) {
-        PublicKey publickey = dg15File.getPublicKey();
-        Signature aaSignature = null;
-        MessageDigest aaDigest = null;
-        Cipher aaCipher = null;
-        boolean answer = false;
-
-        try {
-            if (publickey.getAlgorithm().equals("RSA")) {
-                // Instantiate signature scheme, digest and cipher
-                aaSignature = Signature.getInstance("SHA1WithRSA/ISO9796-2");
-                aaDigest = MessageDigest.getInstance("SHA1");
-                aaCipher = Cipher.getInstance("RSA/NONE/NoPadding");
-                aaCipher.init(Cipher.DECRYPT_MODE, publickey);
-                aaSignature.initVerify(publickey);
-
-                int digestLength = aaDigest.getDigestLength(); // should always be 20
-                assert (digestLength == 20);
-                byte[] plaintext = new byte[0];
-
-                plaintext = aaCipher.doFinal(response);
-
-                byte[] m1 = recoverMessage(digestLength, plaintext);
-                aaSignature.update(m1);
-                aaSignature.update(challenge);
-
-                answer = aaSignature.verify(response);
-
-            } else if (publickey.getAlgorithm().equals("EC")) {
-                // Retrieve the signature scheme from DG14
-                List<ActiveAuthenticationInfo> aaInfos = getDg14File().getActiveAuthenticationInfos();
-                assert (aaInfos.size() == 1);
-                ActiveAuthenticationInfo aaInfo = aaInfos.get(0);
-                String oid = aaInfo.getSignatureAlgorithmOID();
-                String mnenomic = ActiveAuthenticationInfo.lookupMnemonicByOID(oid);
-                mnenomic = rewriteECDSAMnenomic(mnenomic);
-
-                aaSignature = Signature.getInstance(mnenomic);
-                assert (aaSignature != null);
-
-                ECPublicKey ecPublicKey = (ECPublicKey) publickey;
-                ECParameterSpec ecParams = ecPublicKey.getParams();
-
-                aaSignature.initVerify(publickey);
-                aaSignature.update(challenge);
-                answer = aaSignature.verify(response);
-
-            }
-        } catch (ClassCastException         // Casting of publickey to an EC public key failed
-                | NoSuchAlgorithmException  // Error initialising AA cipher suite
-                | NoSuchPaddingException    // same
-                | InvalidKeyException       // publickey is invalid
-                | IllegalBlockSizeException // Error in aaCipher.doFinal()
-                | BadPaddingException       // same
-                | NumberFormatException     // Error in computing or verifying signature
-                | SignatureException e) {   // same
-            e.printStackTrace();
-            answer = false;
-        }
-
-        return answer;
-    }
-*/
-    public static String rewriteECDSAMnenomic (String mnenomic) {
-        if (mnenomic.equals("SHA1withECDSA")) { return "SHA1/CVC-ECDSA"; }
-        if (mnenomic.equals("SHA224withECDSA")) { return "SHA224/CVC-ECDSA"; }
-        if (mnenomic.equals("SHA256withECDSA")) { return "SHA256/CVC-ECDSA"; }
-        if (mnenomic.equals("SHA384withECDSA")) { return "SHA348/CVC-ECDSA"; }
-        if (mnenomic.equals("SHA512withECDSA")) { return "SHA512/CVC-ECDSA"; }
-        if (mnenomic.equals("RIPEMD160withECDSA")) { return "RIPEMD160/CVC-ECDSA"; }
-
-        return mnenomic;
+    @Override
+    protected Integer getAADataGroupNumber() {
+        return aaDataGroupNumber;
     }
 
-    /**
-     * Recovers the M1 part of the message sent back by the AA protocol
-     * (INTERNAL AUTHENTICATE command). The algorithm is described in
-     * ISO 9796-2:2002 9.3.
-     *
-     * Based on code by Ronny (ronny@cs.ru.nl) who presumably ripped this
-     * from Bouncy Castle.
-     *
-     * @param digestLength should be 20
-     * @param plaintext response from card, already 'decrypted' (using the
-     * AA public key)
-     *
-     * @return the m1 part of the message
-     */
-    public static byte[] recoverMessage(int digestLength, byte[] plaintext) {
-        if (plaintext == null || plaintext.length < 1) {
-            throw new IllegalArgumentException("Plaintext too short to recover message");
-        }
-        if (((plaintext[0] & 0xC0) ^ 0x40) != 0) {
-            // 0xC0 = 1100 0000, 0x40 = 0100 0000
-            throw new NumberFormatException("Could not get M1-0");
-        }
-        if (((plaintext[plaintext.length - 1] & 0xF) ^ 0xC) != 0) {
-            // 0xF = 0000 1111, 0xC = 0000 1100
-            throw new NumberFormatException("Could not get M1-1");
-        }
-        int delta = 0;
-        if (((plaintext[plaintext.length - 1] & 0xFF) ^ 0xBC) == 0) {
-            delta = 1;
+    @Override
+    protected String getRootCertFilePath() {
+        return rootCertFilePath;
+    }
+
+    @Override
+    protected String getPersonalDataFileAsString() {
+        DriverDemographicInfo driverInfo = parseDG1();
+        return "driver info: " + driverInfo.toString() + "document Number " + documentNr;
+    }
+
+    private DriverDemographicInfo parseDG1() {
+        DriverDemographicInfo driverInfo = new DriverDemographicInfo();
+        if (dg1File == null){
+            return null;
         } else {
-            // 0xBC = 1011 1100
-            throw new NumberFormatException("Could not get M1-2");
-        }
-
-        /* find out how much padding we've got */
-        int paddingLength = 0;
-        for (; paddingLength < plaintext.length; paddingLength++) {
-            // 0x0A = 0000 1010
-            if (((plaintext[paddingLength] & 0x0F) ^ 0x0A) == 0) {
-                break;
+            ByteArrayInputStream in = new ByteArrayInputStream(dg1File);
+            try {
+            int t = in.read();
+            while ( t !=-1){
+                if (t == 95 /*0x5F start of tag*/){
+                    readObject(driverInfo,in);
+                }
+                t = in.read();
+            }
+            } catch (IOException e1) {
+                // TODO Auto-generated catch block
+                e1.printStackTrace();
             }
         }
-        int messageOffset = paddingLength + 1;
-
-        int paddedMessageLength = plaintext.length - delta - digestLength;
-        int messageLength = paddedMessageLength - messageOffset;
-
-        /* there must be at least one byte of message string */
-        if (messageLength <= 0) {
-            throw new NumberFormatException("Could not get M1-3");
-        }
-
-        /* TODO: if we contain the whole message as well, check the hash of that. */
-        if ((plaintext[0] & 0x20) == 0) {
-            throw new NumberFormatException("Could not get M1-4");
-        } else {
-            byte[] recoveredMessage = new byte[messageLength];
-            System.arraycopy(plaintext, messageOffset, recoveredMessage, 0, messageLength);
-            return recoveredMessage;
-        }
-    }
-
-
-    public DriverDemographicInfo getDriverInfo() {
         return driverInfo;
     }
 
-    public void setDriverInfo(DriverDemographicInfo driverInfo) {
-        this.driverInfo = driverInfo;
+    private void readObject(DriverDemographicInfo driverInfo,InputStream in) throws IOException {
+        int t2 = in.read();
+        int length = in.read();
+        byte[] contents = new byte[length];
+        if (t2 != -1 || length !=-1){
+            switch (t2) {
+                case 01:
+                    in.skip(length);/*unsure what this field represents*/
+                    break;
+                case 02://unclear why, but this field contains no length...
+                    break;
+                case 03: //country of issuance
+                    in.skip(length);
+                    break;
+                case 04://last name
+                    in.read(contents,0,length);
+                    driverInfo.setFamilyName(new String(contents));
+                    break;
+                case 05: //first name
+                    in.read(contents,0,length);
+                    driverInfo.setGivenNames(new String(contents));
+                    break;
+                case 06: //birth date
+                    in.read(contents, 0, length);
+                    driverInfo.setDob(bytesToHex(contents));
+                    break;
+                case 07: // birth place
+                    in.read(contents,0,length);
+                    driverInfo.setPlaceOfBirth(new String(contents));
+                    break;
+                default:
+                    in.skip(length); //we don't care about the rest of the fields for now.
+            }
+        }
+    }
+
+    // copied from stackoverflow
+    // @url: http://stackoverflow.com/questions/332079/in-java-how-do-i-convert-a-byte-array-to-a-string-of-hex-digits-while-keeping-l/2197650#2197650
+    final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
+    public static String bytesToHex(byte[] bytes) {
+        char[] hexChars = new char[bytes.length * 2];
+        for ( int j = 0; j < bytes.length; j++ ) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 2] = hexArray[v >>> 4];
+            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
+        }
+        return new String(hexChars);
     }
 
 
-    public boolean isComplete () {
-        //TODO
-       // if (sodFile == null)
-       //     return false;
-
-//        if (sodFile.getDataGroupHashes().get(14) != null && dg14File == null)
- //           return false;
-
-        return imsi != null && driverInfo != null;// && dg15File != null && response != null;
+    public byte[] getDg1File() {
+        return dg1File;
     }
 
-    public String getImsi() {
-        return imsi;
+    public void setDg1File(byte[] dg1File) {
+        this.dg1File = dg1File;
     }
 
-    public void setImsi(String imsi) {
-        this.imsi = imsi;
+    public DG15File getDg13File() {
+        return getAaFile();
     }
 
-
-
-    public byte[] getChallenge() {
-        return challenge;
+    public void setDg13File(DG15File dg13File) {
+        setAaFile(dg13File);
     }
 
-    public void setChallenge(byte[] response) {
-        this.challenge = challenge;
+    public DG14File getDg14File(){
+        return getEaFile();
     }
 
-
-    public String toString() {
-        return "[IMSI: " + imsi + ", Session: " + getSessionToken() + "\n"
-                + driverInfo.toString();
-               // + "SODFile: " + sodFile.toString() +"\n"
-             //   + "DG1:" + dg1File.toString() + "\n"
-               // + "DG15" + dg15File.toString() + "\n"
-             //   + "response:" + Hex.bytesToHexString(response) + " ]";
+    public void setDg14File(DG14File dg14File) {
+        setEaFile(dg14File);
     }
+
+    public String getDocumentNr() {
+        return documentNr;
+    }
+
+    public void setDocumentNr(String documentNr) {
+        this.documentNr = documentNr;
+    }
+
 }
