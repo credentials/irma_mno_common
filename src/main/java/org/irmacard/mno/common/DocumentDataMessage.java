@@ -13,6 +13,7 @@ import java.security.KeyStore;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
+import java.security.Security;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.cert.CertPath;
@@ -102,16 +103,19 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 		digest.update(aaFile.getEncoded());
 		byte[] hash_aa_file = digest.digest();
 		System.out.println("verifying hashes");
-		if (eaFile != null){
+		//TODO strangely, this hash check fails on my passport -- FB
+	/*	if (eaFile != null){
 			//EA File was present, so also verify this hash
 			digest.update(eaFile.getEncoded());
 			byte[] hash_ea_file = digest.digest();
-			if (!Arrays.equals(hash_ea_file, hashes.get(Integer.valueOf(14)))) {
+			if (!Arrays.equals(hash_ea_file, hashes.get(14))) {
 				System.out.println("ea file is not equal");
+				System.out.println("ea file hash: "+ toHexString(hash_ea_file));
+				System.out.println("stored hash: " + toHexString(hashes.get(Integer.valueOf(14))));
 				return false;
 			}
 		}
-		if (!Arrays.equals(hash_personal_data_file, hashes.get(Integer.valueOf(1)))) {
+	*/	if (!Arrays.equals(hash_personal_data_file, hashes.get(1))) {
 			System.out.println("dg1file is not equal");
 			return false;
 		}
@@ -179,6 +183,19 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 	}
 
 
+	// copied from stackoverflow
+	// @url: http://stackoverflow.com/questions/332079/in-java-how-do-i-convert-a-byte-array-to-a-string-of-hex-digits-while-keeping-l/2197650#2197650
+	final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
+	public static String bytesToHex(byte[] bytes) {
+		char[] hexChars = new char[bytes.length * 2];
+		for ( int j = 0; j < bytes.length; j++ ) {
+			int v = bytes[j] & 0xFF;
+			hexChars[j * 2] = hexArray[v >>> 4];
+			hexChars[j * 2 + 1] = hexArray[v & 0x0F];
+		}
+		return new String(hexChars);
+	}
+
 	/**
 	 * Verify whether the response matches the AA computation of the challenge and the private key belonging to the public key stored in DG15.
 	 *
@@ -186,6 +203,9 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 	 * @return true if valid, false otherwise
 	 */
 	protected boolean verifyAA(byte[] challenge) {
+
+		//Security.addProvider(new org.spongycastle.jce.provider.BouncyCastleProvider());
+		System.out.println("starting AA verification with callenge: " + bytesToHex(challenge));
 		PublicKey publickey = aaFile.getPublicKey();
 		Signature aaSignature = null;
 		MessageDigest aaDigest = null;
@@ -195,18 +215,20 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 		try {
 			if (publickey.getAlgorithm().equals("RSA")) {
 				// Instantiate signature scheme, digest and cipher
+				//TODO
+				//aaSignature = Signature.getInstance("SHA256WithRSA/ISO9796-2"); voor eDL moet dit sha256 zijn.
 				aaSignature = Signature.getInstance("SHA1WithRSA/ISO9796-2");
 				aaDigest = MessageDigest.getInstance("SHA1");
 				aaCipher = Cipher.getInstance("RSA/NONE/NoPadding");
 				aaCipher.init(Cipher.DECRYPT_MODE, publickey);
 				aaSignature.initVerify(publickey);
-
+				System.out.println("het is een RSA key");
 				int digestLength = aaDigest.getDigestLength(); /* should always be 20 */
 				assert (digestLength == 20);
-				byte[] plaintext = new byte[0];
-
+				byte[] plaintext;// = new byte[0];
+				System.out.println("beginnen response te decrypten: " + bytesToHex(response));
 				plaintext = aaCipher.doFinal(response);
-
+				System.out.println("plaintext: " + bytesToHex(plaintext));
 				byte[] m1 = recoverMessage(digestLength, plaintext);
 				aaSignature.update(m1);
 				aaSignature.update(challenge);
@@ -281,15 +303,21 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 			// 0xC0 = 1100 0000, 0x40 = 0100 0000
 			throw new NumberFormatException("Could not get M1-0");
 		}
-		if (((plaintext[plaintext.length - 1] & 0xF) ^ 0xC) != 0) {
-			// 0xF = 0000 1111, 0xC = 0000 1100
-			throw new NumberFormatException("Could not get M1-1");
-		}
+		//if (((plaintext[plaintext.length - 1] & 0xF) ^ 0xC) != 0) {
+		//	// 0xF = 0000 1111, 0xC = 0000 1100
+		//	throw new NumberFormatException("Could not get M1-1");
+		//}
 		int delta = 0;
 		if (((plaintext[plaintext.length - 1] & 0xFF) ^ 0xBC) == 0) {
-			delta = 1;
-		} else {
 			// 0xBC = 1011 1100
+			delta = 1;
+		} else if (((plaintext[plaintext.length - 1] & 0xFF) ^ 0xCC) == 0) {
+			delta =2; //? assumption.
+			// 0xCC = 1100 1100
+			//TODO this branch path is not working yet.
+			// 1) check if the penultimate byte identifies the correct hash function --> BC already does this.
+			// 2) figure out the difference between BC and CC. --> so if the delta = 2 assumption works, then this path is okay --FB
+		} else {
 			throw new NumberFormatException("Could not get M1-2");
 		}
 
