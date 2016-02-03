@@ -48,7 +48,7 @@ public class ProtocolCommandSerializer implements
 	                             JsonSerializationContext context) {
 		JsonObject obj = new JsonObject();
 		obj.addProperty("key", src.getKey());
-		obj.addProperty("apdu", Hex.bytesToHexString(src.getAPDU().getBytes()));
+		obj.addProperty("command", Hex.bytesToHexString(src.getAPDU().getBytes()));
 		return obj;
 	}
 
@@ -57,6 +57,6 @@ public class ProtocolCommandSerializer implements
 			JsonDeserializationContext context) throws JsonParseException {
 		return new ProtocolCommand(
 				json.getAsJsonObject().get("key").getAsString(), "",
-				new CommandAPDU(Hex.hexStringToBytes(json.getAsJsonObject().get("apdu").getAsString())));
+				new CommandAPDU(Hex.hexStringToBytes(json.getAsJsonObject().get("command").getAsString())));
 	}
 }
