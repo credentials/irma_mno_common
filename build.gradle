@@ -31,6 +31,7 @@ dependencies {
     compile('org.jmrtd:jmrtd:0.5.2') {
         transitive = false // Prevent it from including Scuba 0.0.6
     }
+    compile 'com.madgag.spongycastle:prov:1.52.0.0'
 
     testCompile "junit:junit:4.11"
 }

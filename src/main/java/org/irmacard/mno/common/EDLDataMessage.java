@@ -31,25 +31,20 @@
 
 package org.irmacard.mno.common;
 
-import net.sf.scuba.util.Hex;
-
-import org.jmrtd.Util;
 import org.jmrtd.lds.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.*;
-import java.security.cert.*;
-import java.security.cert.Certificate;
-import java.security.interfaces.ECPublicKey;
-import java.security.spec.ECParameterSpec;
-import java.util.*;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
+import java.security.interfaces.RSAPublicKey;
+
+import org.spongycastle.crypto.digests.SHA1Digest;
+import org.spongycastle.crypto.digests.SHA256Digest;
+import org.spongycastle.crypto.engines.RSAEngine;
+import org.spongycastle.crypto.params.RSAKeyParameters;
+import org.spongycastle.crypto.signers.ISO9796d2Signer;
+import org.spongycastle.crypto.SignerWithRecovery;
 
 public class EDLDataMessage extends DocumentDataMessage {
 
@@ -85,6 +80,21 @@ public class EDLDataMessage extends DocumentDataMessage {
     protected String getPersonalDataFileAsString() {
         DriverDemographicInfo driverInfo = parseDG1();
         return "driver info: " + driverInfo.toString() + "document Number " + documentNr;
+    }
+
+    @Override
+    protected SignerWithRecovery getRSASigner(){
+        SignerWithRecovery signer = null;
+        try {
+            RSAEngine rsa = new RSAEngine();
+            RSAPublicKey pub = (RSAPublicKey) aaFile.getPublicKey();
+            RSAKeyParameters pubParameters = new RSAKeyParameters(false,pub.getModulus(), pub.getPublicExponent());
+            signer =  new ISO9796d2Signer( rsa, new SHA256Digest(), false);
+            signer.init(false, pubParameters);
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        return signer;
     }
 
     private DriverDemographicInfo parseDG1() {

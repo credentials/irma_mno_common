@@ -24,6 +24,7 @@ import java.security.cert.PKIXCertPathValidatorResult;
 import java.security.cert.PKIXParameters;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
+import java.security.interfaces.RSAPublicKey;
 import java.security.spec.ECParameterSpec;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,6 +35,15 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+
+import org.spongycastle.crypto.digests.SHA1Digest;
+import org.spongycastle.crypto.digests.SHA256Digest;
+import org.spongycastle.crypto.engines.RSABlindedEngine;
+import org.spongycastle.crypto.engines.RSAEngine;
+import org.spongycastle.crypto.params.RSAKeyParameters;
+import org.spongycastle.crypto.signers.ISO9796d2Signer;
+import org.spongycastle.crypto.SignerWithRecovery;
+import org.spongycastle.crypto.InvalidCipherTextException;
 
 public abstract class DocumentDataMessage extends BasicClientMessage {
 
@@ -67,6 +77,7 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 	protected abstract Integer getAADataGroupNumber();
 	protected abstract String getRootCertFilePath();
 	protected abstract String getPersonalDataFileAsString();
+	protected abstract SignerWithRecovery getRSASigner();
 
 	public PassportVerificationResult verify(byte[] challenge) {
 		if (!verifyHashes()) {
@@ -196,6 +207,7 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 		return new String(hexChars);
 	}
 
+
 	/**
 	 * Verify whether the response matches the AA computation of the challenge and the private key belonging to the public key stored in DG15.
 	 *
@@ -203,39 +215,17 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 	 * @return true if valid, false otherwise
 	 */
 	protected boolean verifyAA(byte[] challenge) {
+		Security.addProvider(new org.spongycastle.jce.provider.BouncyCastleProvider());
+		PublicKey publicKey = aaFile.getPublicKey();
 
-		//Security.addProvider(new org.spongycastle.jce.provider.BouncyCastleProvider());
-		System.out.println("starting AA verification with callenge: " + bytesToHex(challenge));
-		PublicKey publickey = aaFile.getPublicKey();
-		Signature aaSignature = null;
-		MessageDigest aaDigest = null;
-		Cipher aaCipher = null;
 		boolean answer = false;
-
-		try {
-			if (publickey.getAlgorithm().equals("RSA")) {
-				// Instantiate signature scheme, digest and cipher
-				//TODO
-				//aaSignature = Signature.getInstance("SHA256WithRSA/ISO9796-2"); voor eDL moet dit sha256 zijn.
-				aaSignature = Signature.getInstance("SHA1WithRSA/ISO9796-2");
-				aaDigest = MessageDigest.getInstance("SHA1");
-				aaCipher = Cipher.getInstance("RSA/NONE/NoPadding");
-				aaCipher.init(Cipher.DECRYPT_MODE, publickey);
-				aaSignature.initVerify(publickey);
-				System.out.println("het is een RSA key");
-				int digestLength = aaDigest.getDigestLength(); /* should always be 20 */
-				assert (digestLength == 20);
-				byte[] plaintext;// = new byte[0];
-				System.out.println("beginnen response te decrypten: " + bytesToHex(response));
-				plaintext = aaCipher.doFinal(response);
-				System.out.println("plaintext: " + bytesToHex(plaintext));
-				byte[] m1 = recoverMessage(digestLength, plaintext);
-				aaSignature.update(m1);
-				aaSignature.update(challenge);
-
-				answer = aaSignature.verify(response);
-
-			} else if (publickey.getAlgorithm().equals("EC")) {
+		try{
+			if (publicKey.getAlgorithm().equals("RSA")) {
+				SignerWithRecovery signer = getRSASigner();//currently eDL: SHA256/RSA,  passport: SHA1/RSA or SHA1/ECC
+				signer.updateWithRecoveredMessage(response);
+				signer.update(challenge, 0, challenge.length);
+				answer = signer.verifySignature(response);
+			} else if (publicKey.getAlgorithm().equals("EC")) {
 				// Retrieve the signature scheme from DG14
 				List<ActiveAuthenticationInfo> aaInfos = getEaFile().getActiveAuthenticationInfos();
 				assert (aaInfos.size() == 1);
@@ -244,23 +234,20 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 				String mnenomic = ActiveAuthenticationInfo.lookupMnemonicByOID(oid);
 				mnenomic = rewriteECDSAMnenomic(mnenomic);
 
-				aaSignature = Signature.getInstance(mnenomic);
+				Signature aaSignature = Signature.getInstance(mnenomic);
 				assert (aaSignature != null);
 
-				ECPublicKey ecPublicKey = (ECPublicKey) publickey;
-				ECParameterSpec ecParams = ecPublicKey.getParams();
+				//ECPublicKey ecPublicKey = (ECPublicKey) publicKey;
 
-				aaSignature.initVerify(publickey);
+				aaSignature.initVerify(publicKey);
 				aaSignature.update(challenge);
 				answer = aaSignature.verify(response);
 
 			}
-		} catch (ClassCastException         // Casting of publickey to an EC public key failed
+		}  catch (ClassCastException         // Casting of publickey to an EC public key failed
 				| NoSuchAlgorithmException  // Error initialising AA cipher suite
-				| NoSuchPaddingException    // same
 				| InvalidKeyException       // publickey is invalid
-				| IllegalBlockSizeException // Error in aaCipher.doFinal()
-				| BadPaddingException       // same
+				| InvalidCipherTextException //Error in response while doing signer.updateWithRecoveredMessage
 				| NumberFormatException     // Error in computing or verifying signature
 				| SignatureException e) {   // same
 			e.printStackTrace();
@@ -269,6 +256,7 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 
 		return answer;
 	}
+
 
 	public static String rewriteECDSAMnenomic (String mnenomic) {
 		if (mnenomic.equals("SHA1withECDSA")) { return "SHA1/CVC-ECDSA"; }
@@ -279,74 +267,6 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 		if (mnenomic.equals("RIPEMD160withECDSA")) { return "RIPEMD160/CVC-ECDSA"; }
 
 		return mnenomic;
-	}
-
-	/**
-	 * Recovers the M1 part of the message sent back by the AA protocol
-	 * (INTERNAL AUTHENTICATE command). The algorithm is described in
-	 * ISO 9796-2:2002 9.3.
-	 *
-	 * Based on code by Ronny (ronny@cs.ru.nl) who presumably ripped this
-	 * from Bouncy Castle.
-	 *
-	 * @param digestLength should be 20
-	 * @param plaintext response from card, already 'decrypted' (using the
-	 * AA public key)
-	 *
-	 * @return the m1 part of the message
-	 */
-	public static byte[] recoverMessage(int digestLength, byte[] plaintext) {
-		if (plaintext == null || plaintext.length < 1) {
-			throw new IllegalArgumentException("Plaintext too short to recover message");
-		}
-		if (((plaintext[0] & 0xC0) ^ 0x40) != 0) {
-			// 0xC0 = 1100 0000, 0x40 = 0100 0000
-			throw new NumberFormatException("Could not get M1-0");
-		}
-		//if (((plaintext[plaintext.length - 1] & 0xF) ^ 0xC) != 0) {
-		//	// 0xF = 0000 1111, 0xC = 0000 1100
-		//	throw new NumberFormatException("Could not get M1-1");
-		//}
-		int delta = 0;
-		if (((plaintext[plaintext.length - 1] & 0xFF) ^ 0xBC) == 0) {
-			// 0xBC = 1011 1100
-			delta = 1;
-		} else if (((plaintext[plaintext.length - 1] & 0xFF) ^ 0xCC) == 0) {
-			delta =2; //? assumption.
-			// 0xCC = 1100 1100
-			//TODO this branch path is not working yet.
-			// 1) check if the penultimate byte identifies the correct hash function --> BC already does this.
-			// 2) figure out the difference between BC and CC. --> so if the delta = 2 assumption works, then this path is okay --FB
-		} else {
-			throw new NumberFormatException("Could not get M1-2");
-		}
-
-        /* find out how much padding we've got */
-		int paddingLength = 0;
-		for (; paddingLength < plaintext.length; paddingLength++) {
-			// 0x0A = 0000 1010
-			if (((plaintext[paddingLength] & 0x0F) ^ 0x0A) == 0) {
-				break;
-			}
-		}
-		int messageOffset = paddingLength + 1;
-
-		int paddedMessageLength = plaintext.length - delta - digestLength;
-		int messageLength = paddedMessageLength - messageOffset;
-
-        /* there must be at least one byte of message string */
-		if (messageLength <= 0) {
-			throw new NumberFormatException("Could not get M1-3");
-		}
-
-        /* TODO: if we contain the whole message as well, check the hash of that. */
-		if ((plaintext[0] & 0x20) == 0) {
-			throw new NumberFormatException("Could not get M1-4");
-		} else {
-			byte[] recoveredMessage = new byte[messageLength];
-			System.arraycopy(plaintext, messageOffset, recoveredMessage, 0, messageLength);
-			return recoveredMessage;
-		}
 	}
 
 	public boolean isComplete () {
