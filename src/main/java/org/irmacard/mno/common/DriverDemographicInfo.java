@@ -180,6 +180,38 @@ public class DriverDemographicInfo {
     public void setDob(String dob) {
         this.dob = dob;
     }
+
+    public String getDoi() {
+        return doi;
+    }
+
+    public void setDoi(String doi) {
+        this.doi = doi;
+    }
+
+    public String getDoe() {
+        return doe;
+    }
+
+    public void setDoe(String doe) {
+        this.doe = doe;
+    }
+
+    public String getCountry() {
+        return country;
+    }
+
+    public void setCountry(String country) {
+        this.country = country;
+    }
+
+    public String getAuthority() {
+        return authority;
+    }
+
+    public void setAuthority(String authority) {
+        this.authority = authority;
+    }
 }
 
 

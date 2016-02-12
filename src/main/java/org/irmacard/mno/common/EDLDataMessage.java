@@ -51,7 +51,8 @@ public class EDLDataMessage extends DocumentDataMessage {
     byte[] dg1File; /* personal data */
     String documentNr; /* this is taken from the MRZ, if the BAC worked, than the MRZ was correct */
     private static final Integer aaDataGroupNumber = new Integer (13);
-    private static final String rootCertFilePath = "";
+    private static final String pathToCertificates = "_eDL_path";
+    private static final String certificateFiles = "_eDL_certs";
 
     public EDLDataMessage(String sessionToken, String imsi) {
         super(sessionToken,imsi);
@@ -72,8 +73,8 @@ public class EDLDataMessage extends DocumentDataMessage {
     }
 
     @Override
-    protected String getRootCertFilePath() {
-        return rootCertFilePath;
+    protected String getIssuingState() {
+        return parseDG1().country;
     }
 
     @Override
@@ -96,6 +97,17 @@ public class EDLDataMessage extends DocumentDataMessage {
         }
         return signer;
     }
+
+    @Override
+    protected String getCertificateFilePath() {
+        return pathToCertificates;
+    }
+
+    @Override
+    protected String getCertificateFileList() {
+        return certificateFiles;
+    }
+
 
     private DriverDemographicInfo parseDG1() {
         DriverDemographicInfo driverInfo = new DriverDemographicInfo();
@@ -131,7 +143,8 @@ public class EDLDataMessage extends DocumentDataMessage {
                 case 02://unclear why, but this field contains no length...
                     break;
                 case 03: //country of issuance
-                    in.skip(length);
+                    in.read(contents,0,length);
+                    driverInfo.setCountry(new String(contents));
                     break;
                 case 04://last name
                     in.read(contents,0,length);

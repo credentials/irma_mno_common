@@ -7,9 +7,11 @@ import org.jmrtd.lds.DG14File;
 import org.jmrtd.lds.DG15File;
 import org.jmrtd.lds.SODFile;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.security.InvalidKeyException;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
@@ -19,22 +21,16 @@ import java.security.SignatureException;
 import java.security.cert.CertPath;
 import java.security.cert.CertPathValidator;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.PKIXCertPathValidatorResult;
 import java.security.cert.PKIXParameters;
 import java.security.cert.X509Certificate;
-import java.security.interfaces.ECPublicKey;
-import java.security.interfaces.RSAPublicKey;
-import java.security.spec.ECParameterSpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
+import java.util.Properties;
 
 import org.spongycastle.crypto.digests.SHA1Digest;
 import org.spongycastle.crypto.digests.SHA256Digest;
@@ -75,9 +71,11 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 
 	protected abstract byte [] getPersonalDataFileAsBytes();
 	protected abstract Integer getAADataGroupNumber();
-	protected abstract String getRootCertFilePath();
+	protected abstract String getIssuingState();
 	protected abstract String getPersonalDataFileAsString();
 	protected abstract SignerWithRecovery getRSASigner();
+	protected abstract String getCertificateFilePath();
+	protected abstract String getCertificateFileList();
 
 	public PassportVerificationResult verify(byte[] challenge) {
 		if (!verifyHashes()) {
@@ -138,6 +136,43 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 	}
 
 
+	protected KeyStore getRootCerts() {
+		KeyStore keyStore = null;
+		InputStream cIns, pIns;
+		Certificate cert;
+		Properties prop = new Properties();
+		String certPath;
+		String [] certFiles;
+		try {
+			CertificateFactory factory = CertificateFactory.getInstance("X.509");
+			keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+			keyStore.load(null, null);
+
+            /*first load the properties file which contains the location of all certificates */
+			pIns = this.getClass().getClassLoader().getResourceAsStream("certs/certificates.properties");
+			if(pIns==null){
+				throw new RuntimeException("Unable to load certificates.properties");
+			}
+			prop.load(pIns);
+
+			certPath=prop.getProperty(getIssuingState()+getCertificateFilePath());
+			certFiles=(prop.getProperty(getIssuingState()+getCertificateFileList())).split(",");
+			for (String filename: certFiles){
+				cIns = this.getClass().getClassLoader().getResourceAsStream(certPath+filename);
+				cert = factory.generateCertificate(cIns);
+				keyStore.setCertificateEntry(filename, cert);
+				cIns.close();
+			}
+		} catch ( KeyStoreException
+				| IOException
+				| NoSuchAlgorithmException
+				| CertificateException e) {
+			e.printStackTrace();
+		}
+		return keyStore;
+	}
+
+
 
 	private boolean verifySignature() {
 		try {
@@ -149,24 +184,7 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 				return false;
 			}
 
-			InputStream ins;
-			CertificateFactory factory = CertificateFactory.getInstance("X.509");
-			Certificate nlcert;
-			KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-			keyStore.load(null, null);
-
-			//TODO remove this & fix this with subdirs & stuff
-			ins = this.getClass().getClassLoader().getResourceAsStream("nl_eDL_specimen.cer");
-			nlcert = factory.generateCertificate(ins);
-			keyStore.setCertificateEntry("nl_eDL_specimen", nlcert);
-			ins.close();
-			// Load certificates from the jar and put them in the keystore
-			for (int i = 1; i <= 4; i++) {
-				ins = this.getClass().getClassLoader().getResourceAsStream("nl" + i + ".cer");
-				nlcert = factory.generateCertificate(ins);
-				keyStore.setCertificateEntry("nl" + i, nlcert);
-				ins.close();
-			}
+			KeyStore keyStore = getRootCerts();
 
 			// Found this at https://stackoverflow.com/questions/6143646/validate-x509-certificates-using-java-apis. I
 			// really have _no_ clue why this works while the previous code (which was roughly along the lines of

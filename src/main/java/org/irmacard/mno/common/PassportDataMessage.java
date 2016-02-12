@@ -48,7 +48,8 @@ public class PassportDataMessage extends DocumentDataMessage  {
 
     DG1File dg1File;    /* MRZ */
     private static final Integer aaDataGroupNumber = new Integer (15);
-    private static final String rootCertFilePath = "";
+    private static final String pathToCertificates = "_passport_path";
+    private static final String certificateFiles = "_passport_certs";
 
     public PassportDataMessage(String sessionToken, String imsi) {
         super(sessionToken,imsi);
@@ -69,8 +70,8 @@ public class PassportDataMessage extends DocumentDataMessage  {
     }
 
     @Override
-    protected String getRootCertFilePath() {
-        return rootCertFilePath;
+    public String getIssuingState() {
+        return getDg1File().getMRZInfo().getIssuingState();
     }
 
     @Override
@@ -91,6 +92,16 @@ public class PassportDataMessage extends DocumentDataMessage  {
             e.printStackTrace();
         }
         return signer;
+    }
+
+    @Override
+    protected String getCertificateFilePath() {
+        return pathToCertificates;
+    }
+
+    @Override
+    protected String getCertificateFileList() {
+        return certificateFiles;
     }
 
     public DG14File getDg14File() {
