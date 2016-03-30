@@ -162,6 +162,14 @@ public class EDLDataMessage extends DocumentDataMessage {
                     in.read(contents,0,length);
                     driverInfo.setPlaceOfBirth(new String(contents));
                     break;
+                case 10: // doi
+                    in.read(contents,0,length);
+                    driverInfo.setDoi(bytesToHex(contents));
+                    break;
+                case 11: // doe
+                    in.read(contents,0,length);
+                    driverInfo.setDoe(bytesToHex(contents));
+                    break;
                 default:
                     in.skip(length); //we don't care about the rest of the fields for now.
             }
