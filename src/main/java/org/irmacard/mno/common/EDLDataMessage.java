@@ -74,12 +74,12 @@ public class EDLDataMessage extends DocumentDataMessage {
 
     @Override
     protected String getIssuingState() {
-        return parseDG1().country;
+        return getDriverDemographicInfo().country;
     }
 
     @Override
     protected String getPersonalDataFileAsString() {
-        DriverDemographicInfo driverInfo = parseDG1();
+        DriverDemographicInfo driverInfo = getDriverDemographicInfo();
         return "driver info: " + driverInfo.toString() + "document Number " + documentNr;
     }
 
@@ -109,7 +109,7 @@ public class EDLDataMessage extends DocumentDataMessage {
     }
 
 
-    private DriverDemographicInfo parseDG1() {
+    public DriverDemographicInfo getDriverDemographicInfo() {
         DriverDemographicInfo driverInfo = new DriverDemographicInfo();
         if (dg1File == null){
             return null;
