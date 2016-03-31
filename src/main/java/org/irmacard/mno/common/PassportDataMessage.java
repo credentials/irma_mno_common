@@ -45,18 +45,20 @@ import org.spongycastle.crypto.SignerWithRecovery;
 import org.spongycastle.crypto.InvalidCipherTextException;
 
 public class PassportDataMessage extends DocumentDataMessage  {
-
-    DG1File dg1File;    /* MRZ */
+    private String imsi;
+    private DG1File dg1File;    /* MRZ */
     private static final Integer aaDataGroupNumber = new Integer (15);
     private static final String pathToCertificates = "_passport_path";
     private static final String certificateFiles = "_passport_certs";
 
     public PassportDataMessage(String sessionToken, String imsi) {
-        super(sessionToken,imsi);
+        super(sessionToken);
+        this.imsi = imsi;
     }
 
     public PassportDataMessage(String sessionToken, String imsi, byte[] challenge) {
-        super(sessionToken,imsi,challenge);
+        super(sessionToken,challenge);
+        this.imsi = imsi;
     }
 
     @Override
@@ -128,4 +130,11 @@ public class PassportDataMessage extends DocumentDataMessage  {
         this.dg1File = dg1File;
     }
 
+    public String getImsi() {
+        return imsi;
+    }
+
+    public void setImsi(String imsi) {
+        this.imsi = imsi;
+    }
 }

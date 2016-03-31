@@ -54,12 +54,12 @@ public class EDLDataMessage extends DocumentDataMessage {
     private static final String pathToCertificates = "_eDL_path";
     private static final String certificateFiles = "_eDL_certs";
 
-    public EDLDataMessage(String sessionToken, String imsi) {
-        super(sessionToken,imsi);
+    public EDLDataMessage(String sessionToken) {
+        super(sessionToken);
     }
 
-    public EDLDataMessage(String sessionToken, String imsi, byte[] challenge) {
-        super(sessionToken,imsi,challenge);
+    public EDLDataMessage(String sessionToken, byte[] challenge) {
+        super(sessionToken,challenge);
     }
 
     @Override
