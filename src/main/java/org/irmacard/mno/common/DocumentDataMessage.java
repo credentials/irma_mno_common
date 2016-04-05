@@ -42,6 +42,8 @@ import org.spongycastle.crypto.SignerWithRecovery;
 import org.spongycastle.crypto.InvalidCipherTextException;
 
 public abstract class DocumentDataMessage extends BasicClientMessage {
+
+	private String imsi;
 	protected byte [] challenge;  /* challenge sent by the server for AA */
 	protected byte [] response;   /* AA response to challenge */
 	SODFile sodFile;    /* security file with signed hashes of datagroups */
@@ -56,8 +58,14 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 		super(sessionToken);
 	}
 
-	public DocumentDataMessage(String sessionToken, byte[] challenge) {
+	public DocumentDataMessage(String sessionToken, String imsi) {
 		super(sessionToken);
+		this.imsi = imsi;
+	}
+
+	public DocumentDataMessage(String sessionToken, String imsi, byte[] challenge) {
+		super(sessionToken);
+		this.imsi = imsi;
 		this.challenge = challenge;
 	}
 
@@ -286,12 +294,12 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 		if (sodFile.getDataGroupHashes().get(14) != null && eaFile == null)
 			return false;
 
-		return getPersonalDataFileAsBytes() != null && aaFile != null && response != null;
+		return imsi != null && getPersonalDataFileAsBytes() != null && aaFile != null && response != null;
 	}
 
 
 	public String toString() {
-		return "[Session: " + getSessionToken() + "\n"
+		return "[IMSI: " + imsi + ", Session: " + getSessionToken() + "\n"
 				+ "SODFile: " + sodFile.toString() +"\n"
 				+ "DG1:" + getPersonalDataFileAsString() + "\n"
 				+ "DG15" + aaFile.toString() + "\n"
@@ -338,5 +346,13 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 
 	public void setSodFile(SODFile sodFile) {
 		this.sodFile = sodFile;
+	}
+
+	public String getImsi() {
+		return imsi;
+	}
+
+	public void setImsi(String imsi) {
+		this.imsi = imsi;
 	}
 }
