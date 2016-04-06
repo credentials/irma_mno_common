@@ -2,7 +2,7 @@ apply plugin: 'java'
 apply plugin: 'maven'
 apply plugin: 'eclipse'
 
-version = '0.1.5'
+version = '0.2.0'
 group = 'org.irmacard.mno'
 
 repositories {
@@ -27,7 +27,7 @@ sourceSets {
 dependencies {
     compile 'commons-codec:commons-codec:1.10'
     compile "net.sf.scuba:scuba_smartcards:0.0.7-irma"
-    compile 'org.irmacard.api:irma_api_common:0.2.1'
+    compile 'org.irmacard.api:irma_api_common:0.3.0'
     compile('org.jmrtd:jmrtd:0.5.2') {
         transitive = false // Prevent it from including Scuba 0.0.6
     }
