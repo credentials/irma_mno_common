@@ -2,7 +2,7 @@ apply plugin: 'java'
 apply plugin: 'maven'
 apply plugin: 'eclipse'
 
-version = '0.2.0'
+version = '0.2.1'
 group = 'org.irmacard.mno'
 
 repositories {
@@ -25,11 +25,13 @@ sourceSets {
 }
 
 dependencies {
-    compile 'commons-codec:commons-codec:1.10'
-    compile "net.sf.scuba:scuba_smartcards:0.0.7-irma"
-    compile 'org.irmacard.api:irma_api_common:0.3.0'
-    compile('org.jmrtd:jmrtd:0.5.2') {
-        transitive = false // Prevent it from including Scuba 0.0.6
+    compile 'org.irmacard.api:irma_api_common:0.3.7'
+
+    // org.ejbca.cvc:cert-cvc:1.4.0 is not in our or the central maven repo,
+    // instead we included it manually and then stop jmrtd from asking for it
+    compile files('lib/cert-cvc-1.4.0.jar')
+    compile('org.jmrtd:jmrtd:0.5.6') {
+        exclude group: 'org.ejbca.cvc', module: 'cert-cvc'
     }
     compile 'com.madgag.spongycastle:prov:1.52.0.0'
 

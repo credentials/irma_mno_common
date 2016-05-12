@@ -1,45 +1,19 @@
 package org.irmacard.mno.common;
 
 import net.sf.scuba.util.Hex;
-
 import org.jmrtd.lds.ActiveAuthenticationInfo;
-import org.jmrtd.lds.DG14File;
-import org.jmrtd.lds.DG15File;
 import org.jmrtd.lds.SODFile;
+import org.jmrtd.lds.icao.DG14File;
+import org.jmrtd.lds.icao.DG15File;
+import org.spongycastle.crypto.InvalidCipherTextException;
+import org.spongycastle.crypto.SignerWithRecovery;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.InvalidKeyException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
-import java.security.Security;
-import java.security.Signature;
-import java.security.SignatureException;
-import java.security.cert.CertPath;
-import java.security.cert.CertPathValidator;
+import java.security.*;
+import java.security.cert.*;
 import java.security.cert.Certificate;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
-import java.security.cert.PKIXCertPathValidatorResult;
-import java.security.cert.PKIXParameters;
-import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-
-import org.spongycastle.crypto.digests.SHA1Digest;
-import org.spongycastle.crypto.digests.SHA256Digest;
-import org.spongycastle.crypto.engines.RSABlindedEngine;
-import org.spongycastle.crypto.engines.RSAEngine;
-import org.spongycastle.crypto.params.RSAKeyParameters;
-import org.spongycastle.crypto.signers.ISO9796d2Signer;
-import org.spongycastle.crypto.SignerWithRecovery;
-import org.spongycastle.crypto.InvalidCipherTextException;
+import java.util.*;
 
 public abstract class DocumentDataMessage extends BasicClientMessage {
 

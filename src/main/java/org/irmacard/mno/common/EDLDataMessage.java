@@ -31,20 +31,18 @@
 
 package org.irmacard.mno.common;
 
-import org.jmrtd.lds.*;
-
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-
-import java.security.interfaces.RSAPublicKey;
-
-import org.spongycastle.crypto.digests.SHA1Digest;
+import org.jmrtd.lds.icao.DG14File;
+import org.jmrtd.lds.icao.DG15File;
+import org.spongycastle.crypto.SignerWithRecovery;
 import org.spongycastle.crypto.digests.SHA256Digest;
 import org.spongycastle.crypto.engines.RSAEngine;
 import org.spongycastle.crypto.params.RSAKeyParameters;
 import org.spongycastle.crypto.signers.ISO9796d2Signer;
-import org.spongycastle.crypto.SignerWithRecovery;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.security.interfaces.RSAPublicKey;
 
 public class EDLDataMessage extends DocumentDataMessage {
 

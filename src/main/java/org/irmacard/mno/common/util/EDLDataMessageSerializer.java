@@ -31,14 +31,11 @@
 package org.irmacard.mno.common.util;
 
 import com.google.gson.*;
-
 import org.bouncycastle.util.encoders.Base64;
-import org.irmacard.mno.common.PassportDataMessage;
 import org.irmacard.mno.common.EDLDataMessage;
-import org.jmrtd.lds.DG14File;
-import org.jmrtd.lds.DG15File;
-import org.jmrtd.lds.DG1File;
 import org.jmrtd.lds.SODFile;
+import org.jmrtd.lds.icao.DG14File;
+import org.jmrtd.lds.icao.DG15File;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
