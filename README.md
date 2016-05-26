@@ -5,16 +5,16 @@ card emulator application and the MNO server.
 
 ## Prerequisites
 
-This library has the following dependencies.  All these dependencies will be automatically downloaded by gradle when building or installing the library.
+This library has the following dependencies.  All these dependencies will be automatically downloaded by gradle when building or installing the library (except for cert-cvc, which is included).
 
 Internal dependencies:
 
- * [credentials/scuba](https://github.com/credentials/scuba/), scuba_smartcards The Scuba smart-card abstraction layer
+ * [irma_api_common](https://github.com/credentials), for the issuing and verification messages
 
 External dependencies:
 
- * [Apache Commons Codec](https://commons.apache.org/proper/commons-codec/)
- * [Google GSON](https://code.google.com/p/google-gson/)
+ * [JMRTD](https://sourceforge.net/projects/jmrtd/), for communicating with passports (Machine Readable Travel Documents)
+ * [cert-cvc](https://www.ejbca.org/)
 
 ## Building using Gradle (recommended)
 
