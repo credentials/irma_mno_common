@@ -24,13 +24,7 @@ artifacts {
 
 dependencies {
     compile 'org.irmacard.api:irma_api_common:0.3.7'
-
-    // org.ejbca.cvc:cert-cvc:1.4.0 is not in our or the central maven repo,
-    // instead we included it manually and then stop jmrtd from asking for it
-    compile files('lib/cert-cvc-1.4.4.jar')
-    compile('org.jmrtd:jmrtd:0.5.8') {
-        exclude group: 'org.ejbca.cvc', module: 'cert-cvc'
-    }
+    compile 'org.jmrtd:jmrtd:0.5.8'
     compile 'com.madgag.spongycastle:prov:1.52.0.0'
 
     testCompile "junit:junit:4.11"
