@@ -31,6 +31,8 @@
 
 package org.irmacard.mno.common;
 
+import net.sf.scuba.tlv.TLVInputStream;
+
 import org.jmrtd.lds.icao.DG14File;
 import org.jmrtd.lds.icao.DG15File;
 import org.spongycastle.crypto.SignerWithRecovery;
@@ -46,11 +48,12 @@ import java.security.interfaces.RSAPublicKey;
 
 public class EDLDataMessage extends DocumentDataMessage {
 
-    byte[] dg1File; /* personal data */
-    String documentNr; /* this is taken from the MRZ, if the BAC worked, than the MRZ was correct */
     private static final Integer aaDataGroupNumber = new Integer (13);
     private static final String pathToCertificates = "_eDL_path";
     private static final String certificateFiles = "_eDL_certs";
+
+    byte[] dg1File; /* personal data */
+    String documentNr; /* this is taken from the MRZ, if the BAC worked, than the MRZ was correct */
 
     public EDLDataMessage(String sessionToken, String imsi) {
         super(sessionToken,imsi);
@@ -174,6 +177,120 @@ public class EDLDataMessage extends DocumentDataMessage {
         }
     }
 
+    /*
+     *@returns a String representing a summary of allowed driving categories
+     */
+    public String getCategories(){
+        String categories = "-";
+        boolean outerTag = false;
+        for (int i=0; i< dg1File.length;i++){
+            if (!outerTag) {
+                // skip to the occurence of 7F63
+                if (dg1File[i] == (byte) 0x7F) {
+                    if (dg1File[i + 1] == 0x63) {
+                        i++;
+                        outerTag = true;
+                        continue;
+                    } else {
+                        continue;
+                    }
+                }
+            } else {
+                //inside categories tag, find tag 0x87 for new category
+                byte b = dg1File[i];
+                if (b == (byte) 0x87){
+                    String category = "";
+                    for (i+=2/*skip length*/; i< dg1File.length; i++){
+                        byte cat = dg1File[i];
+                        if (cat == (byte) 0x3B){
+                            category+="-";
+                            categories += category;
+                            break;
+                        } else {
+                            category += (char) cat;
+                        }
+
+                    }
+                }
+            }
+        }
+        //categories now might contain to much, e.g. BE supersedes B and categories can be mentioned double
+        StringBuilder summary = new StringBuilder();
+        if (categories.contains("-AM-")){
+            summary.append("AM-");
+        }
+        if (categories.contains("-A1-")){
+            if (categories.contains("-A2-")){
+                if (categories.contains("-A-")){
+                    summary.append("A-");
+                } else {
+                    summary.append("A2-");
+                }
+            } else {
+                summary.append("A1-");
+            }
+        }
+        if (categories.contains("-B1-") && !categories.contains("-B-")){
+            summary.append("B1-");
+        }
+        if (categories.contains("-B-")){
+            if (categories.contains("-BE-")){
+                summary.append("BE-");
+            } else {
+                summary.append("B-");
+            }
+        }
+        if (categories.contains("-C1-")) {
+            if (categories.contains("-C-")) {
+                if (categories.contains("-CE-")) {
+                    summary.append("CE-");
+                } else {
+                    summary.append("C-");
+                }
+            } else {
+                if (categories.contains("-C1E-")) {
+                    summary.append("C1E-");
+                } else {
+                    summary.append("C1-");
+                }
+            }
+        } else {
+            if (categories.contains("-C-")) {
+                if (categories.contains("-CE-")) {
+                    summary.append("CE-");
+                } else {
+                    summary.append("C-");
+                }
+            }
+        }
+        if (categories.contains("-D1-")) {
+            if (categories.contains("-D-")) {
+                if (categories.contains("-DE-")) {
+                    summary.append("DE-");
+                } else {
+                    summary.append("D-");
+                }
+            } else {
+                if (categories.contains("-D1E-")) {
+                    summary.append("D1E-");
+                } else {
+                    summary.append("D1-");
+                }
+            }
+        } else {
+            if (categories.contains("-D-")) {
+                if (categories.contains("-DE-")) {
+                    summary.append("DE-");
+                } else {
+                    summary.append("D-");
+                }
+            }
+        }
+        if (categories.contains("-T-")){
+            summary.append("T-");
+        }
+        return summary.substring(0,summary.length()-1);
+    }
 
     public byte[] getDg1File() {
         return dg1File;
