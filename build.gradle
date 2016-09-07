@@ -2,7 +2,7 @@ apply plugin: 'java'
 apply plugin: 'maven'
 apply plugin: 'eclipse'
 
-version = '0.2.1'
+version = '0.3.0'
 group = 'org.irmacard.mno'
 
 repositories {
@@ -23,9 +23,8 @@ artifacts {
 }
 
 dependencies {
-    compile 'org.irmacard.api:irma_api_common:0.3.7'
+    compile 'org.irmacard.api:irma_api_common:0.5.0'
     compile 'org.jmrtd:jmrtd:0.5.8'
-    compile 'com.madgag.spongycastle:prov:1.52.0.0'
 
     testCompile "junit:junit:4.11"
 }

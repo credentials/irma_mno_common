@@ -35,11 +35,11 @@ import net.sf.scuba.tlv.TLVInputStream;
 
 import org.jmrtd.lds.icao.DG14File;
 import org.jmrtd.lds.icao.DG15File;
-import org.spongycastle.crypto.SignerWithRecovery;
-import org.spongycastle.crypto.digests.SHA256Digest;
-import org.spongycastle.crypto.engines.RSAEngine;
-import org.spongycastle.crypto.params.RSAKeyParameters;
-import org.spongycastle.crypto.signers.ISO9796d2Signer;
+import org.bouncycastle.crypto.SignerWithRecovery;
+import org.bouncycastle.crypto.digests.SHA256Digest;
+import org.bouncycastle.crypto.engines.RSAEngine;
+import org.bouncycastle.crypto.params.RSAKeyParameters;
+import org.bouncycastle.crypto.signers.ISO9796d2Signer;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;

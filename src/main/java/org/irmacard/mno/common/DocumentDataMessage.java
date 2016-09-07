@@ -5,8 +5,8 @@ import org.jmrtd.lds.ActiveAuthenticationInfo;
 import org.jmrtd.lds.SODFile;
 import org.jmrtd.lds.icao.DG14File;
 import org.jmrtd.lds.icao.DG15File;
-import org.spongycastle.crypto.InvalidCipherTextException;
-import org.spongycastle.crypto.SignerWithRecovery;
+import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.bouncycastle.crypto.SignerWithRecovery;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -207,7 +207,7 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 	 * @return true if valid, false otherwise
 	 */
 	protected boolean verifyAA(byte[] challenge) {
-		Security.addProvider(new org.spongycastle.jce.provider.BouncyCastleProvider());
+		Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
 		PublicKey publicKey = aaFile.getPublicKey();
 
 		boolean answer = false;
