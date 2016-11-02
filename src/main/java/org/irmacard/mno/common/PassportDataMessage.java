@@ -83,7 +83,7 @@ public class PassportDataMessage extends DocumentDataMessage  {
         SignerWithRecovery signer = null;
         try {
             RSAEngine rsa = new RSAEngine();
-            RSAPublicKey pub = (RSAPublicKey) aaFile.getPublicKey();
+            RSAPublicKey pub = (RSAPublicKey) getPublicKey(aaFile);
             RSAKeyParameters pubParameters = new RSAKeyParameters(false, pub.getModulus(), pub.getPublicExponent());
             signer = new ISO9796d2Signer(rsa, new SHA1Digest(), true);
             signer.init(false, pubParameters);

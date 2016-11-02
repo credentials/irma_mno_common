@@ -1,5 +1,7 @@
 package org.irmacard.mno.common;
 
+import net.sf.scuba.tlv.TLVInputStream;
+import net.sf.scuba.tlv.TLVOutputStream;
 import net.sf.scuba.util.Hex;
 import org.jmrtd.lds.ActiveAuthenticationInfo;
 import org.jmrtd.lds.SODFile;
@@ -8,11 +10,15 @@ import org.jmrtd.lds.icao.DG15File;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.SignerWithRecovery;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.*;
 import java.security.cert.*;
 import java.security.cert.Certificate;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.*;
 
 public abstract class DocumentDataMessage extends BasicClientMessage {
@@ -21,8 +27,8 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 	protected byte [] challenge;  /* challenge sent by the server for AA */
 	protected byte [] response;   /* AA response to challenge */
 	SODFile sodFile;    /* security file with signed hashes of datagroups */
-	protected DG14File eaFile;  /* SecurityInfos for EAC and PACE*/
-	protected DG15File aaFile;  /* ACtive authentication public key */
+	protected byte[] eaFile;  /* SecurityInfos for EAC and PACE*/
+	protected byte[] aaFile;  /* Active authentication public key */
 
 	public DocumentDataMessage() {
 		super();
@@ -83,7 +89,7 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 		}
 		digest.update(getPersonalDataFileAsBytes());
 		byte[] hash_personal_data_file = digest.digest();
-		digest.update(aaFile.getEncoded());
+		digest.update(aaFile);
 		byte[] hash_aa_file = digest.digest();
 		System.out.println("verifying hashes");
 		//TODO strangely, this hash check fails on my passport -- FB
@@ -208,7 +214,12 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 	 */
 	protected boolean verifyAA(byte[] challenge) {
 		Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-		PublicKey publicKey = aaFile.getPublicKey();
+		PublicKey publicKey = null;
+		try {
+			publicKey = getPublicKey(aaFile);
+		} catch (GeneralSecurityException e) {
+			e.printStackTrace();
+		}
 
 		boolean answer = false;
 		try{
@@ -281,6 +292,61 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 	}
 
 
+    public byte[] readFile(InputStream inputStream, int dataGroupTag) throws IOException {
+        TLVInputStream tlvIn = inputStream instanceof TLVInputStream ? (TLVInputStream)inputStream : new TLVInputStream(inputStream);
+        int tag = tlvIn.readTag();
+        if (tag != dataGroupTag) {
+            throw new IllegalArgumentException("Was expecting tag " + Integer.toHexString(dataGroupTag) + ", found " + Integer.toHexString(tag));
+        }
+        tlvIn.readLength();
+        byte[] value = tlvIn.readValue();
+
+        ByteArrayOutputStream bOut = new ByteArrayOutputStream();
+        TLVOutputStream tlvOut = new TLVOutputStream(bOut);
+        tlvOut.writeTag(tag);
+        tlvOut.writeValue(value);
+        return bOut.toByteArray();
+    }
+
+	/*
+	 * copied from JMRTD
+	 */
+	protected static PublicKey getPublicKey(byte[] fileBytes) throws GeneralSecurityException {
+		X509EncodedKeySpec pubKeySpec = new X509EncodedKeySpec(Arrays.copyOfRange(fileBytes,3,fileBytes.length));
+
+		String[] algorithms = { "RSA", "EC" };
+
+		for (String algorithm: algorithms) {
+			try {
+				KeyFactory keyFactory = KeyFactory.getInstance(algorithm);
+				PublicKey publicKey = keyFactory.generatePublic(pubKeySpec);
+				return publicKey;
+			} catch (InvalidKeySpecException ikse) {
+        /* NOTE: Ignore, try next algorithm. */
+			}
+		}
+		throw new InvalidAlgorithmParameterException();
+	}
+
+	public DG15File getAaFile() {
+		try {
+			return new DG15File(new ByteArrayInputStream(aaFile));
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			return null;
+		}
+	}
+
+	public DG14File getEaFile() {
+		try {
+			return new DG14File(new ByteArrayInputStream(eaFile));
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			return null;
+		}
+	}
 
 	public byte[] getResponse() {
 		return response;
@@ -298,20 +364,24 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 		this.challenge = challenge;
 	}
 
-	public DG15File getAaFile() {
-		return aaFile;
-	}
+	public byte[] getAaFileAsBytes() {return aaFile; }
 
-	public void setAaFile(DG15File aaFile) {
+	public void setAaFile(byte[] aaFile) {
 		this.aaFile = aaFile;
 	}
 
-	public DG14File getEaFile() {
-		return eaFile;
+	public void setAaFile(DG15File aaFile) {
+		this.aaFile = aaFile.getEncoded();
+	}
+
+    public byte[] getEaFileAsBytes() { return eaFile; }
+
+	public void setEaFile(byte[] eaFile) {
+		this.eaFile = eaFile;
 	}
 
 	public void setEaFile(DG14File eaFile) {
-		this.eaFile = eaFile;
+		this.eaFile = eaFile.getEncoded();
 	}
 
 	public SODFile getSodFile() {

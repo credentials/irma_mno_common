@@ -52,8 +52,8 @@ public class EDLDataMessageSerializer
             String documentNr = src.getDocumentNr();
             SODFile sodFile = src.getSodFile();
             byte[] dg1File = src.getDg1File();
-            DG14File dg14File = src.getEaFile();
-            DG15File dg15File = src.getAaFile();
+            byte[] dg14File = src.getEaFileAsBytes();
+            byte[] dg15File = src.getAaFileAsBytes();
             byte[] response = src.getResponse();
 
             obj.addProperty("sessionToken", sessionToken);
@@ -63,8 +63,8 @@ public class EDLDataMessageSerializer
             obj.addProperty("sodFile", context.serialize(sodFile.getEncoded()).getAsString());
             obj.addProperty("dg1File", context.serialize(dg1File).getAsString());
             if (dg14File != null)
-                obj.addProperty("dg14File", context.serialize(dg14File.getEncoded()).getAsString());
-            obj.addProperty("dg15File", context.serialize(dg15File.getEncoded()).getAsString());
+                obj.addProperty("dg14File", context.serialize(dg14File).getAsString());
+            obj.addProperty("dg15File", context.serialize(dg15File).getAsString());
 
             obj.addProperty("response", context.serialize(response).getAsString());
 
