@@ -81,10 +81,10 @@ public class EDLDataMessageSerializer
             String documentNr = map.get("docNr").getAsString();
             SODFile sodFile = new SODFile(toInputStream(map.get("sodFile")));
             byte[] dg1File = Base64.decode(map.get("dg1File").getAsString().getBytes());
-            DG15File dg15File = new DG15File(toInputStream(map.get("dg15File")));
-            DG14File dg14File = null;
+            byte[] dg15File = Base64.decode(map.get("dg15File").getAsString().getBytes());
+            byte[] dg14File = null;
             if (map.get("dg14File") != null)
-                dg14File = new DG14File(toInputStream(map.get("dg14File")));
+                dg14File = Base64.decode(map.get("dg14File").getAsString().getBytes());
             byte[] response = Base64.decode(map.get("response").getAsString().getBytes());
 
             EDLDataMessage msg = new EDLDataMessage(sessionToken, imsi);

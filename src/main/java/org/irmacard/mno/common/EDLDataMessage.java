@@ -52,6 +52,13 @@ public class EDLDataMessage extends DocumentDataMessage {
     private static final String pathToCertificates = "_eDL_path";
     private static final String certificateFiles = "_eDL_certs";
 
+    public static final short dg1FileId = 0x0001;
+    public static final int dg1Tag = 0x61;
+    public static final short sodFileId = 0x001d;
+    public static final short eaFileId = 0x000e;
+    public static final short aaFileId = 0x000d;
+
+
     byte[] dg1File; /* personal data */
     String documentNr; /* this is taken from the MRZ, if the BAC worked, than the MRZ was correct */
 

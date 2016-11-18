@@ -80,17 +80,17 @@ public class PassportDataMessageSerializer
             String imsi = map.get("imsi").getAsString();
             SODFile sodFile = new SODFile(toInputStream(map.get("sodFile")));
             DG1File dg1File = new DG1File(toInputStream(map.get("dg1File")));
-            DG15File dg15File = new DG15File(toInputStream(map.get("dg15File")));
-            DG14File dg14File = null;
+            byte[] dg15File = Base64.decode(map.get("dg15File").getAsString().getBytes());
+            byte[] dg14File = null;
             if (map.get("dg14File") != null)
-                dg14File = new DG14File(toInputStream(map.get("dg14File")));
+                dg14File = Base64.decode(map.get("dg14File").getAsString().getBytes());
             byte[] response = Base64.decode(map.get("response").getAsString().getBytes());
 
             PassportDataMessage msg = new PassportDataMessage(sessionToken, imsi);
             msg.setSodFile(sodFile);
             msg.setDg1File(dg1File);
-            msg.setDg14File(dg14File);
-            msg.setDg15File(dg15File);
+            msg.setEaFile(dg14File);
+            msg.setAaFile(dg15File);
             msg.setResponse(response);
 
             return msg;

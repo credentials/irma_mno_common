@@ -30,6 +30,9 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 	protected byte[] eaFile;  /* SecurityInfos for EAC and PACE*/
 	protected byte[] aaFile;  /* Active authentication public key */
 
+	public static final int eaTag= 0x6E;
+	public static final int aaTag= 0x6F;
+
 	public DocumentDataMessage() {
 		super();
 	}
@@ -331,7 +334,7 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 	public DG15File getAaFile() {
 		try {
 			return new DG15File(new ByteArrayInputStream(aaFile));
-		} catch (IOException e) {
+		} catch (IOException | NullPointerException e) {
 			e.printStackTrace();
 		} finally {
 			return null;
@@ -341,7 +344,7 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 	public DG14File getEaFile() {
 		try {
 			return new DG14File(new ByteArrayInputStream(eaFile));
-		} catch (IOException e) {
+		} catch (IOException | NullPointerException e) {
 			e.printStackTrace();
 		} finally {
 			return null;
