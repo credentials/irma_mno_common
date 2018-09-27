@@ -31,37 +31,31 @@
 package org.irmacard.mno.common.util;
 
 import com.google.gson.*;
-import org.irmacard.mno.common.PassportDataMessage;
-import org.jmrtd.lds.icao.DG1File;
-import org.jmrtd.lds.icao.DG2File;
+import org.bouncycastle.util.encoders.Base64;
+import org.irmacard.mno.common.PassportData;
 import org.jmrtd.lds.SODFile;
+import org.jmrtd.lds.icao.DG1File;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.lang.reflect.Type;
 
-import org.bouncycastle.util.encoders.Base64;
-import org.jmrtd.lds.icao.DG5File;
+public class PassportDataSerializer
+            implements JsonSerializer<PassportData>, JsonDeserializer<PassportData> {
 
-public class PassportDataMessageSerializer
-            implements JsonSerializer<PassportDataMessage>, JsonDeserializer<PassportDataMessage> {
-
-        public JsonElement serialize(PassportDataMessage src, Type typeOfSrc, JsonSerializationContext context) {
+        public JsonElement serialize(PassportData src, Type typeOfSrc, JsonSerializationContext context) {
             JsonObject obj = new JsonObject();
 
-            String sessionToken = src.getSessionToken();
             SODFile sodFile = src.getSodFile();
             DG1File dg1File = src.getDg1File();
-            DG5File dg2File = src.getDg5File();
+            byte[] portrait = src.getPortraitFileBytes();
             byte[] dg14File = src.getEaFileAsBytes();
             byte[] dg15File = src.getAaFileAsBytes();
             byte[] response = src.getResponse();
 
-            obj.addProperty("sessionToken", sessionToken);
-
             obj.addProperty("sodFile", context.serialize(sodFile.getEncoded()).getAsString());
             obj.addProperty("dg1File", context.serialize(dg1File.getEncoded()).getAsString());
-            obj.addProperty("dg2File", context.serialize(dg2File.getEncoded()).getAsString());
+            obj.addProperty("portraitFile", context.serialize(portrait).getAsString());
             if (dg14File != null)
                 obj.addProperty("dg14File", context.serialize(dg14File).getAsString());
             obj.addProperty("dg15File", context.serialize(dg15File).getAsString());
@@ -72,25 +66,25 @@ public class PassportDataMessageSerializer
         }
 
     @Override
-    public PassportDataMessage deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+    public PassportData deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
         try {
             JsonObject map = json.getAsJsonObject();
 
-            String sessionToken = map.get("sessionToken").getAsString();
             SODFile sodFile = new SODFile(toInputStream(map.get("sodFile")));
             DG1File dg1File = new DG1File(toInputStream(map.get("dg1File")));
-            DG2File dg2File = new DG2File(toInputStream(map.get("dg2File")));
+            byte[] portrait = Base64.decode(map.get("portraitFile").getAsString().getBytes());
             byte[] dg15File = Base64.decode(map.get("dg15File").getAsString().getBytes());
             byte[] dg14File = null;
             if (map.get("dg14File") != null)
                 dg14File = Base64.decode(map.get("dg14File").getAsString().getBytes());
             byte[] response = Base64.decode(map.get("response").getAsString().getBytes());
 
-            PassportDataMessage msg = new PassportDataMessage(sessionToken);
+            PassportData msg = new PassportData();
             msg.setSodFile(sodFile);
             msg.setDg1File(dg1File);
             msg.setEaFile(dg14File);
             msg.setAaFile(dg15File);
+            msg.setPortraitFile(portrait);
             msg.setResponse(response);
 
             return msg;

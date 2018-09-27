@@ -32,9 +32,7 @@
 
 package org.irmacard.mno.common;
 
-import org.jmrtd.lds.icao.DG14File;
-import org.jmrtd.lds.icao.DG15File;
-import org.jmrtd.lds.icao.DG1File;
+import org.jmrtd.lds.icao.*;
 import org.bouncycastle.crypto.SignerWithRecovery;
 import org.bouncycastle.crypto.digests.SHA1Digest;
 import org.bouncycastle.crypto.engines.RSAEngine;
@@ -42,20 +40,26 @@ import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.crypto.signers.ISO9796d2Signer;
 
 import java.security.interfaces.RSAPublicKey;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Date;
 
 public class PassportDataMessage extends DocumentDataMessage  {
 
     DG1File dg1File;    /* MRZ */
+    DG5File dg5File;   /* passphoto */
     private static final Integer aaDataGroupNumber = new Integer (15);
     private static final String pathToCertificates = "_passport_path";
     private static final String certificateFiles = "_passport_certs";
 
-    public PassportDataMessage(String sessionToken, String imsi) {
-        super(sessionToken,imsi);
+    public PassportDataMessage(String sessionToken) {
+        super(sessionToken);
     }
 
-    public PassportDataMessage(String sessionToken, String imsi, byte[] challenge) {
-        super(sessionToken,imsi,challenge);
+    public PassportDataMessage(String sessionToken, byte[] challenge) {
+        super(sessionToken,challenge);
     }
 
     @Override
@@ -76,6 +80,42 @@ public class PassportDataMessage extends DocumentDataMessage  {
     @Override
     protected String getPersonalDataFileAsString() {
         return dg1File.getMRZInfo().toString();
+    }
+
+    @Override
+    public String getDataToReview(){
+        StringBuilder sb = new StringBuilder();
+        MRZInfo mrz = dg1File.getMRZInfo();
+        String[] nameParts = splitFamilyName(mrz.getPrimaryIdentifier());
+        // The first of the first names is not always the person's usual name ("roepnaam"). In fact, the person's
+        // usual name need not even be in his list of first names at all. But given only the MRZ, there is no way of
+        // knowing what is his/her usual name... So we can only guess.
+        String firstname = toTitleCase(mrz.getSecondaryIdentifierComponents()[0]);
+
+        SimpleDateFormat bacDateFormat = new SimpleDateFormat("yyMMdd");
+        SimpleDateFormat hrDateFormat = new SimpleDateFormat("MMM d, y");
+        Date dob;
+        Date expiry;
+
+        sb.append("Family name: ").append(nameParts[0]).append(" ").append(toTitleCase(nameParts[1])).append("<br/>");
+        sb.append("Given name: ").append(firstname).append("<br/>");
+        try {
+            dob = bacDateFormat.parse(mrz.getDateOfBirth());
+            sb.append("Birth date: ").append(hrDateFormat.format(dob)).append("<br/>");
+        }  catch (ParseException e) {
+            e.printStackTrace();
+        }
+        sb.append("<br/>");
+        try{
+            expiry = bacDateFormat.parse(mrz.getDateOfExpiry());
+            sb.append("Expiry date ").append(hrDateFormat.format(expiry)).append("<br/>");
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        sb.append("Document type: ").append(mrz.getDocumentType()).append("<br/>");
+        sb.append("Document number: ").append(mrz.getDocumentNumber()).append("<br/>");
+
+        return sb.toString();
     }
 
     @Override
@@ -125,6 +165,79 @@ public class PassportDataMessage extends DocumentDataMessage  {
 
     public void setDg1File(DG1File dg1File) {
         this.dg1File = dg1File;
+    }
+
+    public DG5File getDg5File() {
+        return dg5File;
+    }
+
+    public void setDg5File(DG5File dg5File) {
+        this.dg5File = dg5File;
+    }
+
+    /**
+     * Try to split the family name in into a prefix and a proper part, using a list of commonly occuring (Dutch)
+     * prefixes.
+     * @param name The name to split
+     * @return An array in which the first element is the prefix, or " " if none found, and the second is the
+     * remainder of the name.
+     */
+    public String[] splitFamilyName(String name) {
+        name = name.toLowerCase();
+        String[] parts = {" ", name};
+
+        // Taken from https://nl.wikipedia.org/wiki/Tussenvoegsel
+        String[] prefixes = {"af", "aan", "bij", "de", "den", "der", "d'", "het", "'t", "in", "onder", "op", "over", "'s", "'t", "te", "ten", "ter", "tot", "uit", "uijt", "van", "vanden", "ver", "voor", "aan de", "aan den", "aan der", "aan het", "aan 't", "bij de", "bij den", "bij het", "bij 't", "boven d'", "de die", "de die le", "de l'", "de la", "de las", "de le", "de van der,", "in de", "in den", "in der", "in het", "in 't", "onder de", "onder den", "onder het", "onder 't", "over de", "over den", "over het", "over 't", "op de", "op den", "op der", "op gen", "op het", "op 't", "op ten", "van de", "van de l'", "van den", "van der", "van gen", "van het", "van la", "van 't", "van ter", "van van de", "uit de", "uit den", "uit het", "uit 't", "uit te de", "uit ten", "uijt de", "uijt den", "uijt het", "uijt 't", "uijt te de", "uijt ten", "voor de", "voor den", "voor in 't"};
+
+        // I'm too lazy to manually sort the list above on string size.
+        Arrays.sort(prefixes, new Comparator<String>() {
+            @Override
+            public int compare(String o1, String o2) {
+                if (o1.length() < o2.length()) return 1;
+                if (o1.length() > o2.length()) return -1;
+                return o1.compareTo(o2);
+            }
+        });
+
+        for (String prefix : prefixes) {
+            if (name.startsWith(prefix + " ")) {
+                parts[0] = prefix;
+                parts[1] = name.substring(prefix.length() + 1); // + 1 to skip the space between the prefix and the name
+                return parts;
+            }
+        }
+
+        return parts;
+    }
+
+    public static String toTitleCase(String s) {
+        String ACTIONABLE_DELIMITERS = " '-/"; // these cause the character following to be capitalized
+
+        StringBuilder sb = new StringBuilder();
+        boolean capitalizeNext = true;
+
+        for (char c : s.toCharArray()) {
+            c = capitalizeNext ? Character.toUpperCase(c) : Character.toLowerCase(c);
+            sb.append(c);
+            capitalizeNext = (ACTIONABLE_DELIMITERS.indexOf(c) >= 0);
+        }
+
+        return sb.toString();
+    }
+
+    public static String joinStrings(String[] parts) {
+        if (parts.length == 0)
+            return "";
+
+        String glue = " ";
+
+        String s = parts[0];
+
+        for (int i=1; i<parts.length; i++) {
+            s += glue + parts[i];
+        }
+
+        return s;
     }
 
 }

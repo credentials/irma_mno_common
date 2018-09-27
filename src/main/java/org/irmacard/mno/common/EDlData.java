@@ -1,52 +1,25 @@
-/*
- * eDLDataMessage.java
- *
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * 3. Neither the name of the IRMA project nor the names of its
- * contributors may be used to endorse or promote products derived from this
- * software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 package org.irmacard.mno.common;
 
-import net.sf.scuba.tlv.TLVInputStream;
-
-import org.jmrtd.lds.icao.DG14File;
-import org.jmrtd.lds.icao.DG15File;
 import org.bouncycastle.crypto.SignerWithRecovery;
 import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.bouncycastle.crypto.engines.RSAEngine;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.crypto.signers.ISO9796d2Signer;
 
+import org.jmrtd.lds.icao.DG14File;
+import org.jmrtd.lds.icao.DG15File;
+
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.interfaces.RSAPublicKey;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
 
-public class EDLDataMessage extends DocumentDataMessage {
+public class EDlData extends AbstractEIdData{
 
     private static final Integer aaDataGroupNumber = new Integer (13);
     private static final String pathToCertificates = "_eDL_path";
@@ -57,19 +30,50 @@ public class EDLDataMessage extends DocumentDataMessage {
     public static final short sodFileId = 0x001d;
     public static final short eaFileId = 0x000e;
     public static final short aaFileId = 0x000d;
-    public static final short portraitFileID = 0x0005;
-    public static final int portraitTag = 0x67;
+    public static final short portraitFileID = 0x0006;
+    public static final int portraitTag = 0x75;
 
 
     byte[] dg1File; /* personal data */
     String documentNr; /* this is taken from the MRZ, if the BAC worked, than the MRZ was correct */
 
-    public EDLDataMessage(String sessionToken) {
-        super(sessionToken);
+    public EDlData() {
+        this.scheme_manager = "desk-demo";
+        this.issuer = "RU";
+        this.credential = "drivinglicense";
     }
 
-    public EDLDataMessage(String sessionToken, byte[] challenge) {
-        super(sessionToken,challenge);
+    public EDlData(byte[] challenge) {
+        this.challenge=challenge;
+        this.scheme_manager = "desk-demo";
+        this.issuer = "RU";
+        this.credential = "drivinglicense";
+    }
+
+    public HashMap<String, String> getIssuingJWT(){
+        HashMap<String,String> attrs = new HashMap<>();
+        DriverDemographicInfo driver = getDriverDemographicInfo();
+
+        SimpleDateFormat eDLDateFormat = new SimpleDateFormat("ddMMyyyy");
+        SimpleDateFormat hrDateFormat = new SimpleDateFormat("MMM d, y"); // Matches Android's default date format
+        Date dob=null;
+        Date expiry=null;
+
+        try {
+            dob = eDLDateFormat.parse(driver.getDob());
+            expiry = eDLDateFormat.parse(driver.getDoe());
+        }  catch (ParseException e) {
+            e.printStackTrace();
+        }
+        attrs.put("firstnames", driver.getGivenNames());
+        attrs.put("familyname", driver.getFamilyName());
+        attrs.put("dateofbirth",hrDateFormat.format(dob));
+        attrs.put("placeofbirth",driver.getPlaceOfBirth());
+        attrs.put("licensed",getCategories());
+        attrs.put("country",driver.getCountry());
+        attrs.put("number", getDocumentNr());
+        attrs.put("expires", hrDateFormat.format(expiry));
+        return attrs;
     }
 
     @Override
@@ -143,13 +147,13 @@ public class EDLDataMessage extends DocumentDataMessage {
         } else {
             ByteArrayInputStream in = new ByteArrayInputStream(dg1File);
             try {
-            int t = in.read();
-            while ( t !=-1){
-                if (t == 95 /*0x5F start of tag*/){
-                    readObject(driverInfo,in);
+                int t = in.read();
+                while ( t !=-1){
+                    if (t == 95 /*0x5F start of tag*/){
+                        readObject(driverInfo,in);
+                    }
+                    t = in.read();
                 }
-                t = in.read();
-            }
             } catch (IOException e1) {
                 // TODO Auto-generated catch block
                 e1.printStackTrace();

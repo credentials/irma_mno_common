@@ -4,11 +4,14 @@ import net.sf.scuba.tlv.TLVInputStream;
 import net.sf.scuba.tlv.TLVOutputStream;
 import net.sf.scuba.util.Hex;
 import org.jmrtd.lds.ActiveAuthenticationInfo;
+import org.jmrtd.lds.DisplayedImageInfo;
 import org.jmrtd.lds.SODFile;
 import org.jmrtd.lds.icao.DG14File;
 import org.jmrtd.lds.icao.DG15File;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.SignerWithRecovery;
+import org.jmrtd.lds.icao.DG5File;
+import org.jmrtd.lds.icao.DG7File;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -23,9 +26,9 @@ import java.util.*;
 
 public abstract class DocumentDataMessage extends BasicClientMessage {
 
-	private String imsi;
 	protected byte [] challenge;  /* challenge sent by the server for AA */
 	protected byte [] response;   /* AA response to challenge */
+	protected byte [] portrait;
 	SODFile sodFile;    /* security file with signed hashes of datagroups */
 	protected byte[] eaFile;  /* SecurityInfos for EAC and PACE*/
 	protected byte[] aaFile;  /* Active authentication public key */
@@ -41,14 +44,9 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 		super(sessionToken);
 	}
 
-	public DocumentDataMessage(String sessionToken, String imsi) {
-		super(sessionToken);
-		this.imsi = imsi;
-	}
 
-	public DocumentDataMessage(String sessionToken, String imsi, byte[] challenge) {
+	public DocumentDataMessage(String sessionToken, byte[] challenge) {
 		super(sessionToken);
-		this.imsi = imsi;
 		this.challenge = challenge;
 	}
 
@@ -56,9 +54,20 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 	protected abstract Integer getAADataGroupNumber();
 	protected abstract String getIssuingState();
 	protected abstract String getPersonalDataFileAsString();
+	public abstract String getDataToReview();
 	protected abstract SignerWithRecovery getRSASigner();
 	protected abstract String getCertificateFilePath();
 	protected abstract String getCertificateFileList();
+
+	public byte[] getPortraitBytes(){
+		List<DisplayedImageInfo> images = getPortrait().getImages();
+		if (images!=null && !images.isEmpty()) {
+			return images.get(0).getEncoded();
+		} else {
+			System.out.println("Error, found no images encoded");
+			return null;
+		}
+	}
 
 	public PassportVerificationResult verify(byte[] challenge) {
 		if (!verifyHashes()) {
@@ -282,12 +291,12 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 		if (sodFile.getDataGroupHashes().get(14) != null && eaFile == null)
 			return false;
 
-		return imsi != null && getPersonalDataFileAsBytes() != null && aaFile != null && response != null;
+		return getPersonalDataFileAsBytes() != null && aaFile != null && response != null;
 	}
 
 
 	public String toString() {
-		return "[IMSI: " + imsi + ", Session: " + getSessionToken() + "\n"
+		return "[Session: " + getSessionToken() + "\n"
 				+ "SODFile: " + sodFile.toString() +"\n"
 				+ "DG1:" + getPersonalDataFileAsString() + "\n"
 				+ "DG15" + aaFile.toString() + "\n"
@@ -351,6 +360,21 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 		}
 	}
 
+
+	public DG7File getPortrait() {
+		try{
+			return new DG7File(new ByteArrayInputStream(portrait));
+		}catch (IOException | NullPointerException e) {
+			e.printStackTrace();
+		} finally {
+			return null;
+		}
+	}
+
+	public byte[] getPortraitFileBytes(){
+		return portrait;
+	}
+
 	public byte[] getResponse() {
 		return response;
 	}
@@ -395,11 +419,14 @@ public abstract class DocumentDataMessage extends BasicClientMessage {
 		this.sodFile = sodFile;
 	}
 
-	public String getImsi() {
-		return imsi;
+
+
+	public void setPortrait(byte[] portrait) {
+		this.portrait = portrait;
 	}
 
-	public void setImsi(String imsi) {
-		this.imsi = imsi;
+	public void setPortrait(DG7File portrait){
+		this.portrait = portrait.getEncoded();
 	}
+
 }

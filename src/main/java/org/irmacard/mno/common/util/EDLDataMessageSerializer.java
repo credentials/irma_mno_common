@@ -48,7 +48,6 @@ public class EDLDataMessageSerializer
             JsonObject obj = new JsonObject();
 
             String sessionToken = src.getSessionToken();
-            String imsi = src.getImsi();
             String documentNr = src.getDocumentNr();
             SODFile sodFile = src.getSodFile();
             byte[] dg1File = src.getDg1File();
@@ -57,7 +56,6 @@ public class EDLDataMessageSerializer
             byte[] response = src.getResponse();
 
             obj.addProperty("sessionToken", sessionToken);
-            obj.addProperty("imsi", imsi);
             obj.addProperty("docNr", documentNr);
 
             obj.addProperty("sodFile", context.serialize(sodFile.getEncoded()).getAsString());
@@ -77,7 +75,6 @@ public class EDLDataMessageSerializer
             JsonObject map = json.getAsJsonObject();
 
             String sessionToken = map.get("sessionToken").getAsString();
-            String imsi = map.get("imsi").getAsString();
             String documentNr = map.get("docNr").getAsString();
             SODFile sodFile = new SODFile(toInputStream(map.get("sodFile")));
             byte[] dg1File = Base64.decode(map.get("dg1File").getAsString().getBytes());
@@ -87,7 +84,7 @@ public class EDLDataMessageSerializer
                 dg14File = Base64.decode(map.get("dg14File").getAsString().getBytes());
             byte[] response = Base64.decode(map.get("response").getAsString().getBytes());
 
-            EDLDataMessage msg = new EDLDataMessage(sessionToken, imsi);
+            EDLDataMessage msg = new EDLDataMessage(sessionToken);
             msg.setDocumentNr(documentNr);
             msg.setSodFile(sodFile);
             msg.setDg1File(dg1File);
